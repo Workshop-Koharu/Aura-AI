@@ -9,11 +9,12 @@
 - 로컬 작업 폴더: `C:\\Users\\L\\Downloads\\Koharu\\Aura-AI`
 - AI 저장소로 전달받은 주소: https://github.com/Workshop-Koharu/Aura-AI
 - 웹앱 저장소로 전달받은 주소: https://github.com/Workshop-Koharu/Aura-AI-Web
-- Vercel 프로젝트 `aura-ai-web`은 생성되었다. 아직 Git 연결·배포가 완료된 것은 아니다.
-- Render 워크스페이스는 확인했다. Render 서비스 생성 시도는 GitHub 저장소를 Render가 가져올 수 없다는 오류로 실패했다. Render GitHub 연동 권한과 저장소 소유자/접근성을 대시보드에서 확인해야 한다.
-- Cloudflare Tunnel `aura-ai-api` 리소스를 생성했다(ID: `e54844e0-97b1-4630-8eb2-af1bf6a3ad18`). 현재 상태는 `inactive`이며, 공개 hostname·DNS·실제 origin 주소·connector 실행이 아직 없어 트래픽을 전달하지 않는다. 토큰은 문서에 저장하지 않았다.
-- GitHub 연결에서 위 두 `Workshop-Koharu` 저장소가 현재 연결 계정에 표시되지 않았다. 주소가 비공개/오타/다른 계정 소유인지 확인해야 한다. 다른 저장소에 임의로 코드를 올리지는 않는다.
-- 2026-10-18 로컬 검증 완료: `ruff check .` 통과, `pytest -q` 결과 `2 passed`.
+- Vercel 프로젝트 `aura-ai-web`은 생성되어 있다. 웹 저장소 `Workshop-Koharu/Aura-AI-Web`의 Next.js 기초 화면은 `main`에 커밋되었다. Vercel API 변경은 연결 권한 오류(403)로 막혀 Git 연결·배포·프로젝트 도메인 등록은 아직 미완료다.
+- Render 서비스 `aura-ai-api`는 생성 및 배포 완료 상태다: https://aura-ai-api-1gt5.onrender.com. `GET /health`에서 `{"status":"ok"}` 응답을 확인했다.
+- Cloudflare Tunnel `aura-ai-api` ID `e54844e0-97b1-4630-8eb2-af1bf6a3ad18`을 만들고 원격 설정에 `api-aura.koharu.live` → `https://aura-ai-api-1gt5.onrender.com` 경로를 저장했다. DNS CNAME도 `api-aura.koharu.live` → `e54844e0-97b1-4630-8eb2-af1bf6a3ad18.cfargotunnel.com`으로 추가했지만, connector는 아직 `inactive`라 Tunnel을 통한 요청은 Cloudflare 오류 1033을 반환한다.
+- `api.koharu.live`에는 기존 CNAME이 다른 Tunnel을 가리키고 있어 이를 덮어쓰지 않았다. 새 API hostname으로 `api-aura.koharu.live`를 선택했다.
+- `aura.koharu.live`에는 CNAME `cname.vercel-dns.com` (DNS only, proxied=false)을 추가했다. 단, Vercel 프로젝트에 도메인을 등록/검증하지 못해 아직 최종 연결 완료를 의미하지 않는다. Vercel 대시보드에서 도메인 추가 후 표시되는 DNS 지시값과 이 레코드가 일치하는지 반드시 확인한다.
+- 2026-10-18 API 로컬 검사: `ruff check .` 통과, `pytest -q` 결과 `2 passed`. 웹 빌드는 컴파일은 통과했으나 로컬 npm 설치/타입 검사 과정이 아직 최종 종료되지 않았다.
 
 ## 1. 배포 구조를 이해하기
 
@@ -184,8 +185,11 @@ Render 로그에 “Application startup complete”가 보이지 않으면 Build
 5. Framework Preset을 실제 웹앱 프레임워크에 맞춘다. Next.js가 아니라면 잘못 감지된 설정을 수정한다.
 6. Root Directory를 웹앱의 실제 루트로 설정한다. 모노레포라면 웹앱 폴더를 지정한다.
 7. Build Command / Install Command는 프로젝트의 package.json과 lockfile에 맞춘다. 실제로 존재하지 않는 스크립트를 임의로 입력하지 않는다.
-8. Settings → Environment Variables에 웹앱에서 사용할 API URL을 추가한다. Next.js 클라이언트에서 읽어야 한다면 보통 `NEXT_PUBLIC_API_BASE_URL`을 사용한다. Vite라면 변수 규칙이 다르므로 `VITE_...` 규칙을 따른다.
+8. Settings → Environment Variables에 웹앱에서 사용할 API URL을 추가한다. 이 프로젝트는 Next.js이므로 `NEXT_PUBLIC_API_BASE_URL`을 사용한다. Cloudflare Connector가 연결되기 전 테스트는 `https://aura-ai-api-1gt5.onrender.com`을 넣고, Tunnel을 사용할 준비가 된 뒤 `https://api-aura.koharu.live`로 바꾼다.
 9. 값을 저장한 뒤 Deployments에서 새 배포를 실행한다.
+
+### 현재 Vercel 권한 차단 해결
+Vercel API를 통해 `aura.koharu.live`를 프로젝트에 등록하려 했으나 현재 연결된 Vercel 인증이 프로젝트 소유 범위에 대해 HTTP 403을 반환했다. Vercel Dashboard → `aura-ai-web` → Settings → Domains에서 `aura.koharu.live`을 직접 추가한다. 그런 다음 Vercel이 표시하는 DNS 안내를 확인한다. 현재 Cloudflare에는 `aura.koharu.live` CNAME → `cname.vercel-dns.com` (DNS only) 레코드가 있다. Vercel이 다른 target 또는 TXT 검증 레코드를 표시하면 **Vercel 화면의 최신 지시값을 우선**하고, 검증이 완료될 때까지 도메인을 연결 완료로 간주하지 않는다. Settings → Git에서 `Workshop-Koharu/Aura-AI-Web` 저장소의 `main` 브랜치도 연결한다. 연결이 완료되면 Vercel에서 자동 배포를 확인한다.
 10. 빌드 로그가 성공하면 배포 URL을 연다.
 
 주의: `NEXT_PUBLIC_*` 또는 `VITE_*` 값은 브라우저에 노출된다. 비밀 키, Cloudflare 토큰, 모델 제공자 API 키를 여기에 넣으면 안 된다. 브라우저에는 공개 가능한 API base URL만 둔다.
