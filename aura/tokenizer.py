@@ -1,0 +1,21 @@
+from __future__ import annotations
+
+
+class ByteTokenizer:
+    """Deterministic UTF-8 byte tokenizer; no pretrained vocabulary or external service."""
+
+    PAD_ID = 0
+    EOS_ID = 256
+    BOS_ID = 257
+    VOCAB_SIZE = 258
+
+    def encode(self, text: str, *, add_bos: bool = False, add_eos: bool = False) -> list[int]:
+        ids = list(text.encode("utf-8"))
+        if add_bos:
+            ids.insert(0, self.BOS_ID)
+        if add_eos:
+            ids.append(self.EOS_ID)
+        return ids
+
+    def decode(self, token_ids: list[int]) -> str:
+        return bytes(i for i in token_ids if 0 <= i <= 255).decode("utf-8", errors="replace")

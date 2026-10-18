@@ -1,27 +1,50 @@
 # Aura AI
 
-Aura AI is a modular AI application organized into three independently deployable components:
+Aura AI is being developed as its **own language model**, initialized with random weights and trained from text data. It does not call OpenAI, another hosted model, or a third-party inference API, and it does not fine-tune a pretrained model.
 
-- **Core AI service** — Python API and orchestration, intended for Render.
-- **API edge / tunnel** — Cloudflare-managed ingress and routing; secrets stay in environment configuration.
-- **Web application** — separate frontend repository, intended for Vercel.
+## Current implementation
+- `aura/tokenizer.py`: deterministic UTF-8 byte tokenizer with BOS/EOS tokens.
+- `aura/model.py`: decoder-only causal Transformer implemented with PyTorch.
+- `aura/train.py`: next-token prediction training loop, validation loss, gradient clipping, and checkpoint saving.
+- `aura/inference.py`: autoregressive generation from Aura's own checkpoint.
+- `app/main.py`: FastAPI health and chat endpoints. Chat returns HTTP 503 until a trained checkpoint exists; it never silently falls back to an external model.
+- Web app: separate repository `Workshop-Koharu/Aura-AI-Web`, deployed through Vercel.
 
-## Repository boundaries
+This is a small research prototype, not yet a generally capable assistant. Randomly initialized weights do not contain language knowledge; useful behavior requires a sufficiently large, legally usable corpus, substantial training, evaluation, and suitable compute.
 
-- Core repository: `Workshop-Koharu/Aura-AI`
-- Web repository: `Workshop-Koharu/Aura-AI-Web`
-- Production branch target: `main`
+## 1. Set up Python
+Use Python 3.11 or 3.12 for smooth PyTorch compatibility:
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+```
 
-## Initial implementation status
+## 2. Prepare training data
+Create `data/train.txt` in UTF-8 containing text you wrote or have permission to use. Do not include secrets, private conversations, or copyrighted content without appropriate rights. Byte tokenization supports Korean but uses multiple tokens per character. The model requires at least 148 tokens to exercise the training pipeline; a tiny corpus is only a smoke test, not enough for a useful assistant.
 
-This repository currently contains the project logo only. The architecture and implementation contracts are being established before application logic is added. Repository access and the complete existing prompt/specification set must be verified before claiming compatibility with prior requirements.
+## 3. Train from random initialization
+```powershell
+python -m aura.train --data data/train.txt --steps 3000 --batch-size 16
+```
+Default configuration: 4 Transformer blocks, width 128, context length 128, vocabulary size 258. Training reports train/validation loss and saves `models/checkpoints/aura-small.pt`. Checkpoints and the corpus are ignored by Git because they may be large or private. For deployment, provide the checkpoint through private artifact storage; do not commit large model files to source control.
 
-## Configuration
+Optional `--device auto|cpu|cuda`. CPU training may be slow; CUDA requires a compatible GPU and CUDA-enabled PyTorch.
 
-Never commit API keys, tokens, private URLs, `.env` files, or credentials. Use environment variables and keep `.env.example` limited to variable names and safe placeholders.
+## 4. Run the API
+```powershell
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+- `GET /health`: service liveness and whether a checkpoint file exists.
+- `POST /v1/chat`: autoregressive generation only if the checkpoint exists and loads; otherwise HTTP 503 with a clear not-trained message.
 
-## Documentation
+Example body: `{"messages":[{"role":"user","content":"안녕하세요"}]}`
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Prompt and requirements index](docs/PROMPTS.md)
-- [Implementation roadmap](docs/ROADMAP.md)
+## Deployment note
+Render free instances have limited CPU/RAM; PyTorch loading may cause slow cold starts or memory exhaustion. A trained checkpoint must be made available on the service filesystem or fetched from authenticated artifact storage. Train on a local GPU or dedicated compute, not on a free web-service instance. No external model API key is required or used.
+
+## Repositories
+- Core: `Workshop-Koharu/Aura-AI` (branch `main`).
+- Web: `Workshop-Koharu/Aura-AI-Web` (Vercel domain `aura.koharu.live`).
+- API: `api-aura.koharu.live`.

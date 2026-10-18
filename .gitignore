@@ -10,14 +10,15 @@ venv/
 htmlcov/
 dist/
 build/
-
+# Training outputs and potentially private/large datasets
+models/checkpoints/
+data/train.txt
 # Secrets and local configuration
 .env
 .env.*
 !.env.example
 *.pem
 *.key
-
 # Editors / OS
 .vscode/
 .idea/

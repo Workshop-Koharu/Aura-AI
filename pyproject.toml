@@ -4,29 +4,22 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aura-ai"
-version = "0.1.0"
-description = "Modular AI service foundation for Aura AI"
+version = "0.2.0"
+description = "Aura AI from-scratch Transformer training and inference service"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-  "fastapi>=0.115,<1.0",
-  "uvicorn[standard]>=0.30,<1.0",
-  "httpx>=0.27,<1.0",
-]
+dependencies = ["fastapi>=0.115,<1.0", "uvicorn[standard]>=0.30,<1.0", "torch>=2.4,<3.0"]
 
 [project.optional-dependencies]
-dev = [
-  "httpx>=0.27,<1.0",
-  "pytest>=8.0,<9.0",
-  "ruff>=0.6,<1.0",
-]
+dev = ["httpx>=0.27,<1.0", "pytest>=8.0,<9.0", "ruff>=0.6,<1.0"]
+
+[project.scripts]
+aura-train = "aura.train:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["app*", "aura*"]
