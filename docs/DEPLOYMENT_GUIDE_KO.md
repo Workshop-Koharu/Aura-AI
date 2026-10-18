@@ -14,7 +14,7 @@
 - Cloudflare Tunnel `aura-ai-api` ID `e54844e0-97b1-4630-8eb2-af1bf6a3ad18`을 만들고 원격 설정에 `api-aura.koharu.live` → `https://aura-ai-api-1gt5.onrender.com` 경로를 저장했다. DNS CNAME도 `api-aura.koharu.live` → `e54844e0-97b1-4630-8eb2-af1bf6a3ad18.cfargotunnel.com`으로 추가했지만, connector는 아직 `inactive`라 Tunnel을 통한 요청은 Cloudflare 오류 1033을 반환한다.
 - `api.koharu.live`에는 기존 CNAME이 다른 Tunnel을 가리키고 있어 이를 덮어쓰지 않았다. 새 API hostname으로 `api-aura.koharu.live`를 선택했다.
 - `aura.koharu.live`에는 CNAME `cname.vercel-dns.com` (DNS only, proxied=false)을 추가했다. 단, Vercel 프로젝트에 도메인을 등록/검증하지 못해 아직 최종 연결 완료를 의미하지 않는다. Vercel 대시보드에서 도메인 추가 후 표시되는 DNS 지시값과 이 레코드가 일치하는지 반드시 확인한다.
-- 2026-10-18 API 로컬 검사: `ruff check .` 통과, `pytest -q` 결과 `2 passed`. 웹 빌드는 컴파일은 통과했으나 로컬 npm 설치/타입 검사 과정이 아직 최종 종료되지 않았다.
+- 2026-10-18 검증: API `ruff check .` 통과, `pytest -q` 결과 `2 passed`; 웹앱 `npm run build` 성공(Next.js `15.5.25`), `npm run lint` 오류 없이 종료. 웹앱 빌드와 정적 검사는 통과했지만 Vercel 실제 배포는 아직 미완료.
 
 ## 1. 배포 구조를 이해하기
 
