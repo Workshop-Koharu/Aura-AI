@@ -13,7 +13,7 @@ Aura AI is being developed as its **own language model**, initialized with rando
 This is a small research prototype, not yet a generally capable assistant. Randomly initialized weights do not contain language knowledge; useful behavior requires a sufficiently large, legally usable corpus, substantial training, evaluation, and suitable compute.
 
 ## 1. Set up Python
-Use Python 3.11 or 3.12 for smooth PyTorch compatibility:
+Use Python 3.11 or 3.12 for smooth local compatibility:
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -21,8 +21,10 @@ python -m pip install --upgrade pip
 pip install -e ".[dev]"
 ```
 
+The project pins the CPU-only PyTorch build for deployment. Render's environment must include `PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu` so pip can resolve the `+cpu` wheel without pulling the much larger CUDA distribution. Local Windows installs can use the same setting, or install the matching CPU build from PyTorch's official CPU wheel index.
+
 ## 2. Prepare training data
-Create `data/train.txt` in UTF-8 containing text you wrote or have permission to use. Do not include secrets, private conversations, or copyrighted content without appropriate rights. Byte tokenization supports Korean but uses multiple tokens per character. The model requires at least 148 tokens to exercise the training pipeline; a tiny corpus is only a smoke test, not enough for a useful assistant.
+Create `data/train.txt` in UTF-8 containing text you wrote or have permission to use. Do not include secrets, private messages, or copyrighted content without appropriate rights. Byte tokenization supports Korean but uses multiple tokens per character. The model requires at least 148 tokens to exercise the training pipeline; a tiny corpus is only a smoke test, not enough for a useful assistant.
 
 ## 3. Train from random initialization
 ```powershell
@@ -30,7 +32,7 @@ python -m aura.train --data data/train.txt --steps 3000 --batch-size 16
 ```
 Default configuration: 4 Transformer blocks, width 128, context length 128, vocabulary size 258. Training reports train/validation loss and saves `models/checkpoints/aura-small.pt`. Checkpoints and the corpus are ignored by Git because they may be large or private. For deployment, provide the checkpoint through private artifact storage; do not commit large model files to source control.
 
-Optional `--device auto|cpu|cuda`. CPU training may be slow; CUDA requires a compatible GPU and CUDA-enabled PyTorch.
+Optional `--device auto|cpu|cuda`. CPU training may be slow; CUDA training requires a separate CUDA-enabled PyTorch install, not the deployment CPU wheel.
 
 ## 4. Run the API
 ```powershell
