@@ -10,8 +10,8 @@
 - AI 저장소로 전달받은 주소: https://github.com/Workshop-Koharu/Aura-AI
 - 웹앱 저장소로 전달받은 주소: https://github.com/Workshop-Koharu/Aura-AI-Web
 - Vercel 프로젝트 `aura-ai-web`은 생성되었다. 아직 Git 연결·배포가 완료된 것은 아니다.
-- Render 워크스페이스는 확인했지만, Render 서비스는 아직 생성하지 않았다. 소스 저장소가 연결되지 않으면 정상 배포할 수 없다.
-- Cloudflare API에서 터널을 만들 수 있는 엔드포인트는 확인했지만, 공개 호스트명과 실제 오리진 서비스 주소가 없으므로 라우팅을 활성화하지 않았다. 빈 설정의 터널만 만들면 서비스가 동작하지 않는다.
+- Render 워크스페이스는 확인했다. Render 서비스 생성 시도는 GitHub 저장소를 Render가 가져올 수 없다는 오류로 실패했다. Render GitHub 연동 권한과 저장소 소유자/접근성을 대시보드에서 확인해야 한다.
+- Cloudflare Tunnel `aura-ai-api` 리소스를 생성했다(ID: `e54844e0-97b1-4630-8eb2-af1bf6a3ad18`). 현재 상태는 `inactive`이며, 공개 hostname·DNS·실제 origin 주소·connector 실행이 아직 없어 트래픽을 전달하지 않는다. 토큰은 문서에 저장하지 않았다.
 - GitHub 연결에서 위 두 `Workshop-Koharu` 저장소가 현재 연결 계정에 표시되지 않았다. 주소가 비공개/오타/다른 계정 소유인지 확인해야 한다. 다른 저장소에 임의로 코드를 올리지는 않는다.
 - 2026-10-18 로컬 검증 완료: `ruff check .` 통과, `pytest -q` 결과 `2 passed`.
 
