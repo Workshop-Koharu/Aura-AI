@@ -1,6 +1,7 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -46,6 +47,23 @@ def model_ready() -> bool:
         return False
 
 
+def _looks_like_usable_text(reply: str, messages: list[dict[str, str]]) -> bool:
+    """Reject obvious token/debug noise; never claim a rejected completion is an answer."""
+    text = reply.strip()
+    if len(text) < 6 or re.search(r"data\s*\[\s*\d+\s*\]|(?:\\x[0-9a-f]{2}){2,}", text, re.IGNORECASE):
+        return False
+    if re.search(r"(\w)\1{5,}", text):
+        return False
+    latest = messages[-1]["content"] if messages else ""
+    korean_request = bool(re.search(r"[가-힣]", latest))
+    if korean_request:
+        hangul = len(re.findall(r"[가-힣]", text))
+        letters = len(re.findall(r"[A-Za-z가-힣]", text))
+        if hangul < 3 or (letters and hangul / letters < 0.3):
+            return False
+    return True
+
+
 def generate_reply(messages: list[dict[str, str]], max_new_tokens: int = MAX_GENERATION_TOKENS) -> str:
     """Generate a deliberately short reply to reduce CPU latency and proxy timeouts."""
     if not 1 <= max_new_tokens <= MAX_GENERATION_TOKENS:
@@ -63,6 +81,8 @@ def generate_reply(messages: list[dict[str, str]], max_new_tokens: int = MAX_GEN
         output = model.generate(input_ids, max_new_tokens=max_new_tokens, temperature=0.8, top_k=40)
     generated = output[0, input_ids.shape[1]:].tolist()
     reply = tokenizer.decode(generated).split("\nUser:", 1)[0].split("\nAssistant:", 1)[0].strip()
-    if len(reply) < 2 or not any(ch.isalnum() or '\uac00' <= ch <= '\ud7a3' for ch in reply):
-        return "아직 자연스러운 답변을 생성하지 못했습니다. 현재 Aura는 소형 실험 모델이며 추가 학습과 평가가 필요합니다."
+    if not _looks_like_usable_text(reply, messages):
+        return "아직 자연스러운 답변을 생성하지 못했습니다. Aura는 현재 소형 실험 모델이며, 더 많은 학습과 대화 형식의 데이터 학습이 필요합니다."
     return reply
+
+
