@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: aura-ai-api
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: python -m pip install --upgrade pip && pip install -e .
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: PIP_EXTRA_INDEX_URL
+        value: https://download.pytorch.org/whl/cpu
+      - key: AURA_ENVIRONMENT
+        value: production
+      - key: AURA_CORS_ORIGINS
+        value: https://aura.koharu.live
+      - key: AURA_CHECKPOINT_PATH
+        value: models/checkpoints/aura-small.pt
