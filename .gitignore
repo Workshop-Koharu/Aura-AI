@@ -24,3 +24,8 @@ data/train.txt
 .idea/
 .DS_Store
 Thumbs.db
+
+# AI Hub source archives, generated corpus, and provenance reports (keep local)
+data/source/
+data/SOURCES*.csv
+data/train-test.txt
