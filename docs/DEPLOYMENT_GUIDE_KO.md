@@ -348,3 +348,49 @@ jobs:
 8. 브라우저에서 최종 end-to-end 테스트.
 
 이 순서가 가장 문제를 좁히기 쉽다. 한 번에 세 플랫폼을 동시에 바꾸면 어느 구간에서 실패했는지 파악하기 어렵다.
+
+
+## 14. 실제 체크포인트 배포 및 모델 응답 확인
+
+API 서버의 `/health`가 HTTP 200을 반환하는 것만으로는 모델이 준비된 것이 아니다. 반드시 JSON의 `model_ready` 값도 확인한다.
+
+- `{"status":"ok","model_ready":true,...}`: 서버가 체크포인트 파일을 찾았다. 실제 추론도 별도로 테스트한다.
+- `{"status":"ok","model_ready":false,...}`: API 프로세스는 살아 있지만 모델 파일이 없다. `/v1/chat`은 HTTP 503을 반환한다.
+
+이 프로젝트의 체크포인트는 `models/checkpoints/aura-small.pt`이며, 현재 약 3.4 MB다. 이번 초기 배포를 위해 작은 체크포인트를 저장소에 포함했다. 원본 `data/train.txt`(수십 GB)와 `data/source/`는 절대 GitHub에 올리지 않는다.
+
+### Render 배포 확인
+
+1. GitHub에서 `Workshop-Koharu/Aura-AI` 저장소의 `main` 브랜치를 연다.
+2. `models/checkpoints/aura-small.pt` 파일이 존재하는지 확인한다.
+3. Render Dashboard에서 `aura-ai-api` 서비스를 연다.
+4. Deploys에서 최신 배포가 완료될 때까지 기다린다. 자동 배포가 설정되지 않았다면 Manual Deploy → Deploy latest commit을 누른다.
+5. 다음 URL을 연다: `https://aura-ai-api-1gt5.onrender.com/health`
+6. `model_ready`가 `true`인지 확인한다.
+7. Tunnel 도메인도 확인한다: `https://api-aura.koharu.live/health`
+8. 두 URL 모두 `model_ready: true`이면 웹앱의 채팅 테스트로 진행한다.
+
+### 채팅 API를 직접 테스트
+
+PowerShell에서:
+
+```powershell
+$body = @{ messages = @(@{ role = 'user'; content = 'Hello' }) } | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri 'https://api-aura.koharu.live/v1/chat' -Method Post -ContentType 'application/json' -Body $body
+```
+
+정상 요청은 `reply` 문자열을 반환해야 한다. 이 테스트가 성공하면 API에서 모델 추론이 실행되었다는 뜻이다. 단, 소형 모델의 답변이 의미 없는 문자열일 수 있으므로 정상 HTTP 응답과 답변 품질을 별도로 평가한다.
+
+### 웹앱에서 테스트
+
+1. `https://aura.koharu.live`을 연다.
+2. 채팅창에 `Hello`를 입력한다.
+3. 전송 버튼을 누른다.
+4. F12 → Network에서 `/v1/chat` 요청을 찾는다.
+5. HTTP 200과 JSON의 `reply` 필드를 확인한다.
+6. HTTP 503이면 API의 `model_ready`가 `false`인지 확인한다.
+7. CORS 오류라면 Render의 `AURA_CORS_ORIGINS`에 `https://aura.koharu.live`가 포함되는지 확인한다.
+
+### 중요한 품질 제한
+
+체크포인트는 무작위 초기화된 자체 Transformer를 로컬에서 3,000 step 학습한 실험 결과다. 외부 AI API, 사전 학습 모델, 파인튜닝은 사용하지 않는다. 모델이 답변 문자열을 반환하는 것과 ChatGPT 수준의 유용하고 정확한 답변을 제공하는 것은 다르다. 품질 개선은 데이터 권리·출처 검증, 더 긴 학습, 평가 세트, 학습 알고리즘 개선과 더 큰 계산 자원이 필요한 별도 작업이다.
