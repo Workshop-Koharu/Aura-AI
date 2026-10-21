@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import re
@@ -50,9 +50,14 @@ def model_ready() -> bool:
 def _looks_like_usable_text(reply: str, messages: list[dict[str, str]]) -> bool:
     """Reject obvious token/debug noise; never claim a rejected completion is an answer."""
     text = reply.strip()
-    if len(text) < 6 or re.search(r"data\s*\[\s*\d+\s*\]|(?:\\x[0-9a-f]{2}){2,}", text, re.IGNORECASE):
-        return False
-    if re.search(r"(\w)\1{5,}", text):
+    if (
+        len(text) < 6
+        or "\ufffd" in text
+        or "_" in text
+        or sum(not ch.isalnum() and not ch.isspace() for ch in text) / max(len(text), 1) > 0.35
+        or re.search(r"data\s*\[\s*\d+\s*\]|(?:\\x[0-9a-f]{2}){2,}", text, re.IGNORECASE)
+        or re.search(r"(\w)\1{5,}", text)
+    ):
         return False
     latest = messages[-1]["content"] if messages else ""
     korean_request = bool(re.search(r"[가-힣]", latest))
@@ -84,5 +89,3 @@ def generate_reply(messages: list[dict[str, str]], max_new_tokens: int = MAX_GEN
     if not _looks_like_usable_text(reply, messages):
         return "아직 자연스러운 답변을 생성하지 못했습니다. Aura는 현재 소형 실험 모델이며, 더 많은 학습과 대화 형식의 데이터 학습이 필요합니다."
     return reply
-
-
