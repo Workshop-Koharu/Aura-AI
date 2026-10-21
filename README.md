@@ -50,3 +50,5 @@ Render free instances have limited CPU/RAM; PyTorch loading may cause slow cold 
 - Core: `Workshop-Koharu/Aura-AI` (branch `main`).
 - Web: `Workshop-Koharu/Aura-AI-Web` (Vercel domain `aura.koharu.live`).
 - API: `api-aura.koharu.live`.
+
+> **Project identity:** Aura AI is an independently developed personal project, not a project created or operated by the National Information Society Agency (NIA). Where NIA datasets are used, their required attribution is retained as data-source attribution only; each dataset’s separate license and terms still apply.

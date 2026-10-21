@@ -4,7 +4,7 @@ from pathlib import Path, PurePosixPath
 
 ATTRIBUTION = "본 AI데이터 등을 이용할 때에는 반드시 한국지능정보사회진흥원의 사업결과임을 밝혀야 하며, 본 AI데이터 등을 이용한 2차적 저작물에도 동일하게 밝혀야 합니다."
 TEXT = {".txt", ".md", ".text", ".json", ".jsonl", ".ndjson", ".csv", ".tsv", ".xml", ".html", ".htm"}
-SUPPORTED = TEXT | {".zip", ".docx", ".xlsx"}
+SUPPORTED = TEXT | {".zip", ".doc", ".docx", ".xlsx"}
 
 def decode(b):
     for enc in ("utf-8-sig", "cp949", "euc-kr", "utf-16"):
@@ -87,35 +87,54 @@ def records(data,name,depth=0):
         except Exception as exc:
             print(f"[ERROR] 텍스트 추출 실패 {name}: {exc}",file=sys.stderr); return
     if ext==".doc":
-        # Use Microsoft Word automation if installed, otherwise ask user to install/convert explicitly.
-        try:
-            import win32com.client
-            import tempfile, os
-            with tempfile.NamedTemporaryFile(suffix=".doc",delete=False) as tmp:
-                tmp.write(data); temp_name=tmp.name
-            word=win32com.client.DispatchEx("Word.Application")
-            word.Visible=False
+        # Prefer LibreOffice headless conversion; fall back to Microsoft Word COM automation.
+        import os, subprocess, tempfile
+        converted = False
+        soffice = shutil.which("soffice")
+        candidates = [soffice, r"C:\Program Files\LibreOffice\program\soffice.exe", r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"]
+        soffice = next((x for x in candidates if x and Path(x).is_file()), None)
+        if soffice:
             try:
-                doc=word.Documents.Open(temp_name,ReadOnly=True,AddToRecentFiles=False)
-                try: text=doc.Content.Text.strip()
-                finally: doc.Close(False)
-            finally:
-                word.Quit()
-                try: os.unlink(temp_name)
-                except OSError: pass
-        except Exception as exc:
-            print(f"[ERROR] 구형 .doc 변환 실패: {name}. Microsoft Word 설치/자동화 지원을 확인하거나 Word에서 .docx로 변환하세요. 상세: {exc}",file=sys.stderr); return
+                with tempfile.TemporaryDirectory(prefix="aura_doc_") as td:
+                    tdpath=Path(td); src=tdpath / "input.doc"; src.write_bytes(data)
+                    profile=(tdpath / "lo-profile").as_uri()
+                    result=subprocess.run([soffice, "-env:UserInstallation="+profile, "--headless", "--convert-to", "txt:Text", "--outdir", str(tdpath), str(src)], capture_output=True, text=True, timeout=180)
+                    txt=tdpath / "input.txt"
+                    if result.returncode==0 and txt.is_file():
+                        text=decode(txt.read_bytes()).strip(); converted=bool(text)
+                    if not converted and result.stderr: print(f"[WARN] LibreOffice .doc 변환 실패 {name}: {result.stderr.strip()}",file=sys.stderr)
+            except Exception as exc:
+                print(f"[WARN] LibreOffice .doc 변환 예외 {name}: {exc}",file=sys.stderr)
+        if not converted:
+            try:
+                import win32com.client
+                with tempfile.NamedTemporaryFile(suffix=".doc",delete=False) as tmp:
+                    tmp.write(data); temp_name=tmp.name
+                word=win32com.client.DispatchEx("Word.Application")
+                word.Visible=False
+                try:
+                    doc=word.Documents.Open(temp_name,ReadOnly=True,AddToRecentFiles=False)
+                    try: text=doc.Content.Text.strip(); converted=bool(text)
+                    finally: doc.Close(False)
+                finally:
+                    word.Quit()
+                    try: os.unlink(temp_name)
+                    except OSError: pass
+            except Exception as exc:
+                print(f"[ERROR] 구형 .doc 변환 실패: {name}. LibreOffice 또는 Microsoft Word 변환 기능이 필요합니다. 상세: {exc}",file=sys.stderr); return
+        if not converted:
+            print(f"[ERROR] 구형 .doc에서 텍스트를 추출하지 못했습니다: {name}",file=sys.stderr); return
     if not text: return
     yield name,text,hashlib.sha256(data).hexdigest()
 
 def main():
-    p=argparse.ArgumentParser(description="AI Hub nested data extraction, provenance logging and optional post-success cleanup.")
+    p=argparse.ArgumentParser(description="Aura AI personal project: extract permitted datasets, log provenance, and keep source files safe.")
     p.add_argument("--source",type=Path,default=Path("data/source"))
     p.add_argument("--output",type=Path,default=Path("data/train.txt"))
     p.add_argument("--manifest",type=Path,default=Path("data/SOURCES.csv"))
     p.add_argument("--web-manifest",type=Path,default=Path("../Aura-AI-Web/public/aihub-sources.json"))
     p.add_argument("--limit-files",type=int,default=0)
-    p.add_argument("--delete-source-after-success",action="store_true",help="ONLY after corpus, manifests are fully written and verified, delete the entire source folder. Irreversible.")
+    p.add_argument("--delete-source-after-success",action="store_true",help=argparse.SUPPRESS)
     a=p.parse_args(); root=a.source.resolve()
     if not root.is_dir(): p.error(f"원본 폴더 없음: {root}")
     files=sorted(x for x in root.rglob("*") if x.is_file() and x.suffix.lower() in SUPPORTED and x.resolve()!=a.output.resolve())
@@ -156,10 +175,7 @@ def main():
     print(f"웹앱 출처: {a.web_manifest.resolve()} ({len(source_names):,}개 데이터셋/상위 폴더)")
     print("출처 표기는 포함했지만 데이터셋별 이용 조건도 별도로 확인하세요.")
     if a.delete_source_after_success:
-        print("원본 삭제 확인: 생성된 train.txt 및 출처 목록이 기록되었습니다.")
-        shutil.rmtree(root)
-        print(f"삭제 완료: {root}")
-    else:
-        print("안전 모드: 원본은 삭제하지 않았습니다. 결과 확인 후에만 --delete-source-after-success 옵션을 사용하세요.")
+        raise RuntimeError("안전 차단: 폴더 전체 삭제는 지원하지 않습니다. 모든 파일의 성공 여부와 출처를 개별 검증하는 정리 계획을 먼저 생성하세요. 원본은 삭제하지 않았습니다.")
+    print("안전 모드: 원본은 삭제하지 않았습니다. 출처와 추출 결과를 검증한 뒤에만 정리하세요.")
 
 if __name__=="__main__": main()
