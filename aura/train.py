@@ -51,6 +51,12 @@ def main() -> None:
         description="Train Aura from random initialization using memory-mapped byte batches."
     )
     parser.add_argument("--data", type=Path, default=Path("data/train.txt"))
+    parser.add_argument(
+        "--dialogue-data",
+        type=Path,
+        default=None,
+        help="Optional normalized instruction/response corpus mixed into every batch",
+    )
     parser.add_argument("--output", type=Path, default=Path("models/checkpoints/aura-small.pt"))
     parser.add_argument("--steps", type=int, default=3000)
     parser.add_argument("--batch-size", type=int, default=4)
@@ -75,6 +81,13 @@ def main() -> None:
         parser.error(
             f"Corpus too small: need at least {block_size * 2 + 20} bytes; found {corpus_bytes}."
         )
+    dialogue_bytes = 0
+    if args.dialogue_data is not None:
+        if not args.dialogue_data.is_file():
+            parser.error(f"Dialogue corpus not found: {args.dialogue_data}")
+        dialogue_bytes = args.dialogue_data.stat().st_size
+        if dialogue_bytes < block_size * 2 + 20:
+            parser.error("Dialogue corpus is too small for the selected block size.")
     if args.device == "cuda" and not torch.cuda.is_available():
         parser.error("CUDA requested but no CUDA GPU is available to PyTorch.")
 
@@ -117,6 +130,7 @@ def main() -> None:
                     "corpus": str(args.data),
                     "batch_size": args.batch_size,
                     "device": str(device),
+                    "dialogue_data": str(args.dialogue_data) if args.dialogue_data else None,
                 },
             },
             temporary,
@@ -125,13 +139,43 @@ def main() -> None:
         model.to(device)
         print(f"Checkpoint saved at step {step}: {args.output.resolve()}", flush=True)
 
+    dialogue_handle = args.dialogue_data.open("rb") if args.dialogue_data else None
+    dialogue_mapped = (
+        mmap.mmap(dialogue_handle.fileno(), length=0, access=mmap.ACCESS_READ)
+        if dialogue_handle
+        else None
+    )
+    dialogue_split = int(dialogue_bytes * 0.95) if dialogue_mapped else 0
     with args.data.open("rb") as handle:  # noqa: SIM117
         with mmap.mmap(handle.fileno(), length=0, access=mmap.ACCESS_READ) as mapped:
             model.train()
             for step in range(1, args.steps + 1):
-                xb, yb = get_batch(
-                    mapped, 0, split - block_size - 1, args.batch_size, block_size, device
-                )
+                if dialogue_mapped is not None:
+                    dialogue_batch = max(1, args.batch_size // 2)
+                    corpus_batch = args.batch_size - dialogue_batch
+                    batches = []
+                    if corpus_batch:
+                        batches.append(
+                            get_batch(
+                                mapped, 0, split - block_size - 1, corpus_batch, block_size, device
+                            )
+                        )
+                    batches.append(
+                        get_batch(
+                            dialogue_mapped,
+                            0,
+                            dialogue_split - block_size - 1,
+                            dialogue_batch,
+                            block_size,
+                            device,
+                        )
+                    )
+                    xb = torch.cat([batch[0] for batch in batches], dim=0)
+                    yb = torch.cat([batch[1] for batch in batches], dim=0)
+                else:
+                    xb, yb = get_batch(
+                        mapped, 0, split - block_size - 1, args.batch_size, block_size, device
+                    )
                 optimizer.zero_grad(set_to_none=True)
                 _, loss = model(xb, yb)
                 assert loss is not None
@@ -158,6 +202,9 @@ def main() -> None:
                 if args.checkpoint_every and step % args.checkpoint_every == 0:
                     save(step)
             save(args.steps)
+    if dialogue_mapped is not None:
+        dialogue_mapped.close()
+        dialogue_handle.close()
     print(
         "Training complete. Loss reduction alone does not guarantee answer quality or factuality.",
         flush=True,
