@@ -28,19 +28,24 @@ The project pins a CPU PyTorch build for deployment. Render's environment must i
 ## 2. Prepare training data
 `data/train.txt` is generated locally from text data the project is permitted to use. The current corpus is about 20.5 GB. Do not commit `data/train.txt`, `data/source/`, or private data. Byte tokenization supports Korean but represents characters as UTF-8 bytes, which may require several tokens per character.
 
-## 3. Train from random initialization
+## 3. Normalize instruction/response examples
+
+`prepare_dialogues.py` extracts prompt/response and role-based conversation pairs from the six local instruction-tuning dataset folders. It writes a separate dialogue corpus and a source manifest. During training, `--dialogue-data` reserves half of each training batch for these normalized conversation examples while sampling the other half from the full corpus. This improves alignment with the `User:` / `Aura:` inference prompt, but does not guarantee assistant-level quality.
+
+## 4. Train from random initialization
 
 Low-memory CPU example:
 
 ```powershell
-python -m aura.train --data data/train.txt --steps 10000 --batch-size 4 --threads 4 --log-every 100 --checkpoint-every 500 --device cpu
+python prepare_dialogues.py --source data/source --output data/dialogue_train.txt --manifest data/DIALOGUE_SOURCES.csv
+python -m aura.train --data data/train.txt --dialogue-data data/dialogue_train.txt --steps 10000 --batch-size 4 --threads 4 --log-every 100 --checkpoint-every 500 --device cpu
 ```
 
 The trainer memory-maps the corpus instead of loading the full text into RAM. The current training configuration has 4 Transformer blocks, width 192, context length 256, 4 attention heads, and vocabulary size 258 (about 1.88 million parameters). The tokenizer is byte-level UTF-8, which is robust and simple but inefficient for Korean: one Hangul syllable usually takes three tokens. This is still a small experimental model, not a production-grade conversational assistant. The default checkpoint path is `models/checkpoints/aura-small.pt`.
 
 The checked-in checkpoint is an initial deployment artifact. A newly trained checkpoint should be evaluated on held-out prompts before replacing the deployed artifact. Further training overwrites it locally; evaluate it before replacing the deployed artifact. Loss reduction alone does not guarantee useful responses.
 
-## 4. Run the API locally
+## 5. Run the API locally
 
 ```powershell
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
@@ -52,7 +57,7 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 Example request body: `{"messages":[{"role":"user","content":"Hello"}]}`.
 
-## 5. Deploy
+## 6. Deploy
 
 - Core/API repository: `Workshop-Koharu/Aura-AI`, branch `main`.
 - Web repository: `Workshop-Koharu/Aura-AI-Web`, branch `main`.
