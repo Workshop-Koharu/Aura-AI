@@ -11,8 +11,8 @@ from aura.model import AuraTransformer
 from aura.tokenizer import ByteTokenizer
 
 DEFAULT_CHECKPOINT = Path(__file__).resolve().parents[1] / "models" / "checkpoints" / "aura-small.pt"
-MAX_CONTEXT_BYTES = 96
-MAX_GENERATION_TOKENS = 24
+MAX_CONTEXT_BYTES = 256
+MAX_GENERATION_TOKENS = 64
 
 
 class AuraModelNotReady(RuntimeError):
@@ -81,7 +81,8 @@ def generate_reply(messages: list[dict[str, str]], max_new_tokens: int = MAX_GEN
     tokenizer = ByteTokenizer()
     prompt = "".join(f"{m['role'].capitalize()}: {m['content'].strip()}\n" for m in messages) + "Aura:"
     prompt_ids = tokenizer.encode(prompt, add_bos=True)
-    input_ids = torch.tensor([prompt_ids[-MAX_CONTEXT_BYTES:]], dtype=torch.long, device=device)
+    context_limit = min(MAX_CONTEXT_BYTES, int(model.config["block_size"]))
+    input_ids = torch.tensor([prompt_ids[-context_limit:]], dtype=torch.long, device=device)
     with torch.inference_mode():
         output = model.generate(input_ids, max_new_tokens=max_new_tokens, temperature=0.8, top_k=40)
     generated = output[0, input_ids.shape[1]:].tolist()

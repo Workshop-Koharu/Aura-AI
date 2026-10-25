@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import mmap
@@ -12,8 +12,8 @@ from aura.tokenizer import ByteTokenizer
 
 DEFAULT_CONFIG: dict[str, int | float] = {
     "vocab_size": ByteTokenizer.VOCAB_SIZE,
-    "block_size": 128,
-    "n_embd": 128,
+    "block_size": 256,
+    "n_embd": 192,
     "n_head": 4,
     "n_layer": 4,
     "dropout": 0.1,
@@ -53,7 +53,7 @@ def main() -> None:
     parser.add_argument("--data", type=Path, default=Path("data/train.txt"))
     parser.add_argument("--output", type=Path, default=Path("models/checkpoints/aura-small.pt"))
     parser.add_argument("--steps", type=int, default=3000)
-    parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")

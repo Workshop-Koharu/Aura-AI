@@ -33,12 +33,12 @@ The project pins a CPU PyTorch build for deployment. Render's environment must i
 Low-memory CPU example:
 
 ```powershell
-python -m aura.train --data data/train.txt --steps 3000 --batch-size 1 --threads 1 --log-every 25 --checkpoint-every 250 --device cpu
+python -m aura.train --data data/train.txt --steps 10000 --batch-size 4 --threads 4 --log-every 100 --checkpoint-every 500 --device cpu
 ```
 
-The trainer memory-maps the corpus instead of loading the full text into RAM. The current configuration has 4 Transformer blocks, width 128, context length 128, and vocabulary size 258. The default checkpoint path is `models/checkpoints/aura-small.pt`.
+The trainer memory-maps the corpus instead of loading the full text into RAM. The current training configuration has 4 Transformer blocks, width 192, context length 256, 4 attention heads, and vocabulary size 258 (about 1.88 million parameters). The tokenizer is byte-level UTF-8, which is robust and simple but inefficient for Korean: one Hangul syllable usually takes three tokens. This is still a small experimental model, not a production-grade conversational assistant. The default checkpoint path is `models/checkpoints/aura-small.pt`.
 
-The checked-in checkpoint is a small initial deployment artifact trained for 3,000 optimizer steps on the local corpus. Further training overwrites it locally; evaluate it before replacing the deployed artifact. Loss reduction alone does not guarantee useful responses.
+The checked-in checkpoint is an initial deployment artifact. A newly trained checkpoint should be evaluated on held-out prompts before replacing the deployed artifact. Further training overwrites it locally; evaluate it before replacing the deployed artifact. Loss reduction alone does not guarantee useful responses.
 
 ## 4. Run the API locally
 
@@ -71,3 +71,9 @@ Required NIA data attribution:
 > 본 AI데이터 등을 이용할 때에는 반드시 한국지능정보사회의 사업결과임을 밝혀야 하며, 본 AI데이터 등을 이용한 2차적 저작물에도 동일하게 밝혀야 합니다.
 
 Check the dataset's original terms for the exact attribution wording required by its provider.
+
+
+## Quality checks
+Run `python -m pytest -q` before committing changes. Tests cover UTF-8 round-trips, model tensor shapes, causal attention, and rejection of obviously corrupted short completions. These checks do not establish factual accuracy or conversational quality.
+
+For Korean chat quality, the current byte tokenizer and generic next-byte objective remain major limitations. A more capable next version should train a Korean subword tokenizer from the permitted corpus and train on normalized instruction/response examples, with a held-out evaluation set. Do not claim that increasing parameter count alone fixes nonsensical output.

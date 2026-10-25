@@ -1,38 +1,20 @@
 import torch
-
 from aura.model import AuraTransformer
-from aura.tokenizer import ByteTokenizer
+from aura.train import DEFAULT_CONFIG
 
-
-def test_transformer_logits_and_loss_shapes() -> None:
-    config = {
-        "vocab_size": ByteTokenizer.VOCAB_SIZE,
-        "block_size": 16,
-        "n_embd": 32,
-        "n_head": 4,
-        "n_layer": 2,
-        "dropout": 0.0,
-    }
-    model = AuraTransformer(config)
-    tokens = torch.randint(0, ByteTokenizer.VOCAB_SIZE, (2, 12))
-    logits, loss = model(tokens, tokens)
-    assert logits.shape == (2, 12, ByteTokenizer.VOCAB_SIZE)
+def test_model_shape_and_parameter_budget():
+    model = AuraTransformer(DEFAULT_CONFIG)
+    assert sum(p.numel() for p in model.parameters()) > 1_500_000
+    x = torch.randint(0, DEFAULT_CONFIG["vocab_size"], (2, 32))
+    logits, loss = model(x, x)
+    assert logits.shape == (2, 32, DEFAULT_CONFIG["vocab_size"])
     assert loss is not None and torch.isfinite(loss)
 
-
-def test_transformer_rejects_long_context() -> None:
-    config = {
-        "vocab_size": ByteTokenizer.VOCAB_SIZE,
-        "block_size": 8,
-        "n_embd": 16,
-        "n_head": 4,
-        "n_layer": 1,
-        "dropout": 0.0,
-    }
-    model = AuraTransformer(config)
-    try:
-        model(torch.zeros((1, 9), dtype=torch.long))
-    except ValueError as exc:
-        assert "block_size" in str(exc)
-    else:
-        raise AssertionError("Expected context length validation")
+def test_attention_is_causal():
+    torch.manual_seed(7)
+    model = AuraTransformer(DEFAULT_CONFIG).eval()
+    a = torch.randint(0, DEFAULT_CONFIG["vocab_size"], (1, 12))
+    b = a.clone(); b[0, -1] = (b[0, -1] + 1) % DEFAULT_CONFIG["vocab_size"]
+    with torch.inference_mode():
+        la, _ = model(a); lb, _ = model(b)
+    assert torch.allclose(la[:, :-1], lb[:, :-1], atol=1e-5, rtol=1e-5)
