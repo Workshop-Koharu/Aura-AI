@@ -45,12 +45,17 @@ def pair(prompt: str, answer: str) -> str | None:
 
 def extract_pairs(value: object):
     if isinstance(value, dict):
+        lowered = {str(key).lower(): child for key, child in value.items()}
         prompt = pick(value, PROMPT_KEYS)
         answer = pick(value, ANSWER_KEYS)
+        instruction = scalar(lowered.get("instruction"))
+        input_text = scalar(lowered.get("input"))
+        if instruction and input_text and prompt == instruction:
+            prompt = f"{instruction}\n{input_text}"
+        extra = pick(value, ("context", "background"))
         if prompt and answer:
-            extra = pick(value, ("context", "background"))
-            if extra and prompt.lower() in ("instruction", "input"):
-                prompt = f"{prompt}\n{extra}"
+            if extra and not input_text:
+                prompt = f"{prompt}\nContext: {extra}"
             formatted = pair(prompt, answer)
             if formatted:
                 yield formatted
