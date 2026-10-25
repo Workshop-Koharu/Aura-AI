@@ -33,3 +33,5 @@ data/dialogue_train.txt
 data/DIALOGUE_SOURCES.csv
 data/*prepare.log
 data/*prepare.exit.txt
+data/*.log
+data/*.exit.txt
