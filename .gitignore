@@ -29,3 +29,7 @@ Thumbs.db
 data/source/
 data/SOURCES*.csv
 data/train-test.txt
+data/dialogue_train.txt
+data/DIALOGUE_SOURCES.csv
+data/*prepare.log
+data/*prepare.exit.txt
