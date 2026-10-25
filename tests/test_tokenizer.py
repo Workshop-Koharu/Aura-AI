@@ -1,9 +1,11 @@
 from aura.tokenizer import ByteTokenizer
 
+
 def test_korean_utf8_roundtrip():
     tokenizer = ByteTokenizer()
     text = "??, Aura AI! ?? ????."
     assert tokenizer.decode(tokenizer.encode(text)) == text
+
 
 def test_special_tokens_are_outside_utf8_bytes():
     tokenizer = ByteTokenizer()

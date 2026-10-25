@@ -59,7 +59,9 @@ def main() -> None:
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--checkpoint-every", type=int, default=500)
-    parser.add_argument("--threads", type=int, default=2, help="CPU thread cap; use 1-4 on memory-constrained PCs")
+    parser.add_argument(
+        "--threads", type=int, default=2, help="CPU thread cap; use 1-4 on memory-constrained PCs"
+    )
     args = parser.parse_args()
     if args.steps < 1 or args.batch_size < 1 or args.learning_rate <= 0:
         parser.error("steps, batch-size and learning-rate must be positive")
@@ -70,14 +72,20 @@ def main() -> None:
     block_size = int(DEFAULT_CONFIG["block_size"])
     corpus_bytes = args.data.stat().st_size
     if corpus_bytes < block_size * 2 + 20:
-        parser.error(f"Corpus too small: need at least {block_size * 2 + 20} bytes; found {corpus_bytes}.")
+        parser.error(
+            f"Corpus too small: need at least {block_size * 2 + 20} bytes; found {corpus_bytes}."
+        )
     if args.device == "cuda" and not torch.cuda.is_available():
         parser.error("CUDA requested but no CUDA GPU is available to PyTorch.")
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.set_num_threads(args.threads)
-    device = torch.device("cuda" if args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available()) else "cpu")
+    device = torch.device(
+        "cuda"
+        if args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available())
+        else "cpu"
+    )
     split = int(corpus_bytes * 0.95)
     split = min(max(split, block_size + 1), corpus_bytes - block_size - 1)
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -85,19 +93,34 @@ def main() -> None:
     model = AuraTransformer(DEFAULT_CONFIG).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
     parameters = sum(p.numel() for p in model.parameters())
-    print(f"Device: {device}; corpus bytes: {corpus_bytes:,}; parameters: {parameters:,}; batch: {args.batch_size}; CPU threads: {args.threads}", flush=True)
-    print("RAM optimization: corpus is memory-mapped; only sampled batches are copied to RAM.", flush=True)
+    print(
+        f"Device: {device}; corpus bytes: {corpus_bytes:,}; parameters: {parameters:,}; batch: {args.batch_size}; CPU threads: {args.threads}",
+        flush=True,
+    )
+    print(
+        "RAM optimization: corpus is memory-mapped; only sampled batches are copied to RAM.",
+        flush=True,
+    )
 
     def save(step: int) -> None:
         temporary = args.output.with_suffix(args.output.suffix + ".tmp")
-        torch.save({
-            "format_version": 2,
-            "config": DEFAULT_CONFIG,
-            "model_state_dict": model.cpu().state_dict(),
-            "training": {"steps": step, "target_steps": args.steps, "seed": args.seed,
-                         "corpus_bytes": corpus_bytes, "corpus": str(args.data),
-                         "batch_size": args.batch_size, "device": str(device)},
-        }, temporary)
+        torch.save(
+            {
+                "format_version": 2,
+                "config": DEFAULT_CONFIG,
+                "model_state_dict": model.cpu().state_dict(),
+                "training": {
+                    "steps": step,
+                    "target_steps": args.steps,
+                    "seed": args.seed,
+                    "corpus_bytes": corpus_bytes,
+                    "corpus": str(args.data),
+                    "batch_size": args.batch_size,
+                    "device": str(device),
+                },
+            },
+            temporary,
+        )
         temporary.replace(args.output)
         model.to(device)
         print(f"Checkpoint saved at step {step}: {args.output.resolve()}", flush=True)
@@ -106,7 +129,9 @@ def main() -> None:
         with mmap.mmap(handle.fileno(), length=0, access=mmap.ACCESS_READ) as mapped:
             model.train()
             for step in range(1, args.steps + 1):
-                xb, yb = get_batch(mapped, 0, split - block_size - 1, args.batch_size, block_size, device)
+                xb, yb = get_batch(
+                    mapped, 0, split - block_size - 1, args.batch_size, block_size, device
+                )
                 optimizer.zero_grad(set_to_none=True)
                 _, loss = model(xb, yb)
                 assert loss is not None
@@ -116,17 +141,28 @@ def main() -> None:
                 if step == 1 or step % args.log_every == 0 or step == args.steps:
                     model.eval()
                     with torch.inference_mode():
-                        vx, vy = get_batch(mapped, split, corpus_bytes - block_size - 1,
-                                           min(args.batch_size, 2), block_size, device)
+                        vx, vy = get_batch(
+                            mapped,
+                            split,
+                            corpus_bytes - block_size - 1,
+                            min(args.batch_size, 2),
+                            block_size,
+                            device,
+                        )
                         _, val_loss = model(vx, vy)
-                    print(f"step {step:6d}/{args.steps} | train loss {loss.item():.4f} | val loss {val_loss.item():.4f}", flush=True)
+                    print(
+                        f"step {step:6d}/{args.steps} | train loss {loss.item():.4f} | val loss {val_loss.item():.4f}",
+                        flush=True,
+                    )
                     model.train()
                 if args.checkpoint_every and step % args.checkpoint_every == 0:
                     save(step)
             save(args.steps)
-    print("Training complete. Loss reduction alone does not guarantee answer quality or factuality.", flush=True)
+    print(
+        "Training complete. Loss reduction alone does not guarantee answer quality or factuality.",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":
     main()
-
