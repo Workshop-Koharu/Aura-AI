@@ -58,6 +58,12 @@ def main() -> None:
         help="Optional normalized instruction/response corpus mixed into every batch",
     )
     parser.add_argument("--output", type=Path, default=Path("models/checkpoints/aura-small.pt"))
+    parser.add_argument(
+        "--init-checkpoint",
+        type=Path,
+        default=None,
+        help="Initialize model weights from a compatible Aura checkpoint; optimizer starts fresh",
+    )
     parser.add_argument("--steps", type=int, default=3000)
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
@@ -103,7 +109,16 @@ def main() -> None:
     split = min(max(split, block_size + 1), corpus_bytes - block_size - 1)
     args.output.parent.mkdir(parents=True, exist_ok=True)
 
-    model = AuraTransformer(DEFAULT_CONFIG).to(device)
+    model = AuraTransformer(DEFAULT_CONFIG)
+    if args.init_checkpoint is not None:
+        if not args.init_checkpoint.is_file():
+            parser.error(f"Initial checkpoint not found: {args.init_checkpoint}")
+        checkpoint = torch.load(args.init_checkpoint, map_location="cpu", weights_only=True)
+        if checkpoint.get("config") != DEFAULT_CONFIG:
+            parser.error("Initial checkpoint configuration does not match DEFAULT_CONFIG.")
+        model.load_state_dict(checkpoint["model_state_dict"])
+        print(f"Initialized weights from {args.init_checkpoint.resolve()}", flush=True)
+    model = model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
     parameters = sum(p.numel() for p in model.parameters())
     print(
@@ -131,6 +146,7 @@ def main() -> None:
                     "batch_size": args.batch_size,
                     "device": str(device),
                     "dialogue_data": str(args.dialogue_data) if args.dialogue_data else None,
+                    "init_checkpoint": str(args.init_checkpoint) if args.init_checkpoint else None,
                 },
             },
             temporary,
