@@ -13,9 +13,9 @@ from aura.tokenizer import ByteTokenizer
 DEFAULT_CONFIG: dict[str, int | float] = {
     "vocab_size": ByteTokenizer.VOCAB_SIZE,
     "block_size": 256,
-    "n_embd": 192,
+    "n_embd": 256,
     "n_head": 4,
-    "n_layer": 4,
+    "n_layer": 6,
     "dropout": 0.1,
 }
 

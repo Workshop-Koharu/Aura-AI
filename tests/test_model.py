@@ -6,7 +6,7 @@ from aura.train import DEFAULT_CONFIG
 
 def test_model_shape_and_parameter_budget():
     model = AuraTransformer(DEFAULT_CONFIG)
-    assert sum(p.numel() for p in model.parameters()) > 1_500_000
+    assert sum(p.numel() for p in model.parameters()) > 4_500_000
     x = torch.randint(0, DEFAULT_CONFIG["vocab_size"], (2, 32))
     logits, loss = model(x, x)
     assert logits.shape == (2, 32, DEFAULT_CONFIG["vocab_size"])

@@ -28,6 +28,7 @@ TEXT = {
 }
 SUPPORTED = TEXT | {".zip", ".doc", ".docx", ".xlsx"}
 _WORD_APP = None
+_DOC_CACHE: dict[str, str | None] = {}
 
 
 def _close_word():
@@ -171,6 +172,7 @@ def records(data, name, depth=0):
         import os
         import tempfile
 
+        doc_digest = hashlib.sha256(data).hexdigest()
         converted = False
         temp_name = None
         try:
@@ -181,6 +183,8 @@ def records(data, name, depth=0):
                 _WORD_APP = win32com.client.DispatchEx("Word.Application")
                 _WORD_APP.Visible = False
                 _WORD_APP.DisplayAlerts = 0
+                _WORD_APP.Options.ConfirmConversions = False
+                _WORD_APP.Options.SaveNormalPrompt = False
             with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as tmp:
                 tmp.write(data)
                 temp_name = tmp.name
@@ -189,7 +193,7 @@ def records(data, name, depth=0):
                 ReadOnly=True,
                 AddToRecentFiles=False,
                 ConfirmConversions=False,
-                OpenAndRepair=True,
+                OpenAndRepair=False,
             )
             try:
                 text = document.Content.Text.strip()
@@ -234,6 +238,7 @@ def records(data, name, depth=0):
                     os.unlink(temp_name)
                 except OSError:
                     pass
+        _DOC_CACHE[doc_digest] = text if converted else None
         if not converted:
             print(f"[ERROR] legacy .doc extraction failed: {name}", file=sys.stderr)
             return
