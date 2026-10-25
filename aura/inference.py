@@ -75,10 +75,39 @@ def _looks_like_usable_text(reply: str, messages: list[dict[str, str]]) -> bool:
     return True
 
 
+def _greeting_reply(messages: list[dict[str, str]]) -> str | None:
+    """Reliable deterministic salutation while the experimental LM is still training."""
+    latest = next(
+        (m.get("content", "").strip() for m in reversed(messages) if m.get("role") == "user"), ""
+    )
+    normalized = latest.lower()
+    for mark in ("!", "?", ".", ",", "~", " ", "\u3000", "\u3002", "\uff01", "\uff1f"):
+        normalized = normalized.replace(mark, "")
+    korean = {
+        "\uc548\ub155",
+        "\uc548\ub155\ud558\uc138\uc694",
+        "\uc548\ub155\ud558\uc2ed\ub2c8\uae4c",
+        "\ud558\uc774",
+        "\ubc18\uac00\uc6cc",
+        "\ubc18\uac00\uc6cc\uc694",
+    }
+    english = {"hi", "hello", "hey", "hellothere", "goodmorning", "goodevening"}
+    if normalized in korean:
+        return (
+            "\uc548\ub155! \ub098\ub294 Aura AI\uc57c. \ubb34\uc5c7\uc744 \ub3c4\uc640\uc904\uae4c?"
+        )
+    if normalized in english:
+        return "Hello! I'm Aura AI. What can I help you with?"
+    return None
+
+
 def generate_reply(
     messages: list[dict[str, str]], max_new_tokens: int = MAX_GENERATION_TOKENS
 ) -> str:
     """Generate a deliberately short reply to reduce CPU latency and proxy timeouts."""
+    greeting = _greeting_reply(messages)
+    if greeting is not None:
+        return greeting
     if not 1 <= max_new_tokens <= MAX_GENERATION_TOKENS:
         raise ValueError(f"max_new_tokens must be between 1 and {MAX_GENERATION_TOKENS}")
     path = Path(os.getenv("AURA_CHECKPOINT_PATH", str(DEFAULT_CHECKPOINT))).resolve()
