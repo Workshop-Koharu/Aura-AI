@@ -90,7 +90,7 @@ def generate_reply(
     prompt = (
         "".join(f"{m['role'].capitalize()}: {m['content'].strip()}\n" for m in messages) + "Aura:"
     )
-    prompt_ids = tokenizer.encode(prompt, add_bos=True)
+    prompt_ids = tokenizer.encode(prompt)
     context_limit = min(MAX_CONTEXT_BYTES, int(model.config["block_size"]))
     input_ids = torch.tensor([prompt_ids[-context_limit:]], dtype=torch.long, device=device)
     with torch.inference_mode():
