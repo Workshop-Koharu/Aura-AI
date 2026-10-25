@@ -127,5 +127,5 @@ def generate_reply(
     generated = output[0, input_ids.shape[1] :].tolist()
     reply = tokenizer.decode(generated).split("\nUser:", 1)[0].split("\nAssistant:", 1)[0].strip()
     if not _looks_like_usable_text(reply, messages):
-        return "아직 자연스러운 답변을 생성하지 못했습니다. Aura는 현재 소형 실험 모델이며, 더 많은 학습과 대화 형식의 데이터 학습이 필요합니다."
+        return "지금은 이 질문에 대해 신뢰할 만한 답변을 만들지 못했습니다. 질문을 조금 구체화하거나 다른 방식으로 물어봐 주세요."
     return reply
