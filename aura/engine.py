@@ -41,7 +41,8 @@ class InferenceEngine:
     def generate(self, prompt, image_bytes=None, audio_bytes=None, max_new_tokens=160):
         self.load(required=True)
         with self.lock, torch.inference_mode():
-            ids = torch.tensor([self.tokenizer.encode(prompt)[-MODEL.max_seq_len:]], dtype=torch.long)
+            encoded = [257] + self.tokenizer.encode(prompt, add_special=False)[-(MODEL.max_seq_len - 1):]
+            ids = torch.tensor([encoded], dtype=torch.long)
             image = image_tensor(image_bytes) if image_bytes else None
             audio = wav_spectrogram(audio_bytes) if audio_bytes else None
             generated = self.model.generate(ids, max_new_tokens=max_new_tokens, image=image, audio=audio)

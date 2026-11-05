@@ -71,7 +71,7 @@ Run a local stdio MCP server:
 .\start-mcp.ps1
 ~~~
 
-Tools: health, model_info, generate_text, generate_with_image, generate_with_audio, training_status, start_training, stop_training, list_datasets, add_text_data.
+Tools: health, model_info, generate_text, generate_with_image, generate_with_audio, training_status, start_training, stop_training, list_datasets, add_text_data, register_image_caption, register_audio_transcript.
 
 For a local streamable-HTTP MCP endpoint on `http://127.0.0.1:8001/mcp`:
 
