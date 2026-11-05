@@ -30,6 +30,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=20000)
     image_base64: str | None = None
     audio_base64: str | None = None
+    files: list[dict] = Field(default_factory=list)
     max_tokens: int = Field(default=160, ge=1, le=512)
 
 class OpenAIMessage(BaseModel):
@@ -53,6 +54,39 @@ def decode_file(value):
         return base64.b64decode(value, validate=True)
     except Exception as exc:
         raise HTTPException(400, "Invalid base64 attachment.") from exc
+
+
+def extract_document_text(filename: str, content_type: str, raw: bytes) -> str:
+    suffix = Path(filename).suffix.lower()
+    if suffix in {".txt", ".md", ".csv", ".json", ".py", ".js", ".html", ".css", ".xml", ".yaml", ".yml", ".log"} or content_type.startswith("text/"):
+        return raw.decode("utf-8-sig", errors="replace")[:120000]
+    if suffix == ".pdf":
+        from pypdf import PdfReader
+        reader = PdfReader(__import__("io").BytesIO(raw))
+        return "\n".join(page.extract_text() or "" for page in reader.pages[:80])[:120000]
+    if suffix == ".docx":
+        from docx import Document
+        doc = Document(__import__("io").BytesIO(raw))
+        return "\n".join(p.text for p in doc.paragraphs)[:120000]
+    if suffix == ".xlsx":
+        from openpyxl import load_workbook
+        book = load_workbook(__import__("io").BytesIO(raw), read_only=True, data_only=True)
+        rows = []
+        for sheet in book.worksheets[:10]:
+            rows.append(f"[시트: {sheet.title}]")
+            for row in sheet.iter_rows(max_row=500, values_only=True):
+                rows.append(" | ".join("" if v is None else str(v) for v in row))
+        return "\n".join(rows)[:120000]
+    if suffix == ".pptx":
+        from pptx import Presentation
+        deck = Presentation(__import__("io").BytesIO(raw))
+        lines = []
+        for slide in deck.slides[:80]:
+            for shape in slide.shapes:
+                if getattr(shape, "has_text_frame", False):
+                    lines.append(shape.text)
+        return "\n".join(lines)[:120000]
+    return ""
 
 def append_pair(kind, relative, text):
     folder = DATA / ("image_text" if kind == "image" else "audio_text")
@@ -146,8 +180,33 @@ async def add_audio(transcript: str = Form(...), file: UploadFile = File(...)):
 def chat(body: ChatRequest):
     image = decode_file(body.image_base64)
     audio = decode_file(body.audio_base64)
+    prompt = body.message
+    for item in body.files[:5]:
+        name = Path(str(item.get("name", "attachment"))).name
+        raw = decode_file(item.get("base64"))
+        if not raw:
+            continue
+        if len(raw) > 3 * 1024 * 1024:
+            raise HTTPException(413, f"{name}: 파일은 3MB 이하만 처리할 수 있습니다.")
+        mime = str(item.get("type", ""))
+        suffix = Path(name).suffix.lower()
+        if mime.startswith("image/") and image is None:
+            image = raw
+        elif mime.startswith("audio/") and audio is None:
+            audio = raw
+        else:
+            try:
+                extracted = extract_document_text(name, mime, raw)
+            except ImportError as exc:
+                raise HTTPException(503, "문서 분석 패키지가 설치되지 않았습니다. Colab 환경을 다시 설치하세요.") from exc
+            except Exception as exc:
+                raise HTTPException(400, f"{name}: 문서 내용을 읽지 못했습니다: {exc}") from exc
+            if extracted.strip():
+                prompt += f"\n\n[첨부 문서: {name}]\n{extracted}"
+            elif suffix not in {".png", ".jpg", ".jpeg", ".webp", ".wav"}:
+                prompt += f"\n\n[첨부 파일: {name}] 텍스트를 추출할 수 없는 형식입니다."
     try:
-        text, meta = ENGINE.generate(body.message, image, audio, body.max_tokens)
+        text, meta = ENGINE.generate(prompt[:20000], image, audio, body.max_tokens)
         return {"text": text, "meta": meta}
     except RuntimeError as exc:
         raise HTTPException(503, str(exc)) from exc

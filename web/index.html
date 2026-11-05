@@ -44,7 +44,8 @@
         <div class="welcome-mark"><img src="/assets/aura-mark.png" alt="Aura 로고"></div>
         <div class="eyebrow">AURA GENERATIVE AI</div>
         <h1>무엇이든 물어보세요</h1>
-        <p class="welcome-copy">글쓰기, 코딩, 아이디어, 이미지와 음성 이해까지. Aura와 함께 생각을 시작하세요.</p>
+        <p class="welcome-copy">글쓰기, 코딩, 아이디어, 문서 분석과 학습을 지원하는 대화형 AI 서비스입니다.</p>
+        <div class="purpose-note"><strong>Aura AI의 목적</strong><br>이용자의 질문에 AI 답변을 제공하고, 로그인 이용자가 첨부한 문서·이미지·음성 자료를 분석하는 개인용 AI 워크스페이스입니다. Google 로그인은 계정 인증에만 사용하며 Google API를 비동의 친밀 이미지의 생성·배포에 사용하지 않습니다. 비로그인 사용자는 5회까지 텍스트 대화를 이용할 수 있고, 기록은 저장되지 않으며 파일 첨부는 로그인 후 사용할 수 있습니다.</div>
         <div class="suggestions">
           <button class="suggestion" data-prompt="파이썬 프로젝트의 폴더 구조와 구현 계획을 설계해 줘."><span class="suggestion-icon">⌘</span><span><strong>코드 설계</strong><small>프로젝트 구조와 구현 계획</small></span></button>
           <button class="suggestion" data-prompt="새로운 주제를 단계별로 공부할 수 있도록 학습 순서를 만들어 줘."><span class="suggestion-icon">▤</span><span><strong>학습 정리</strong><small>개념을 순서대로 정리</small></span></button>
@@ -59,7 +60,7 @@
         <div class="dataset-section"><div class="dataset-title"><h2>등록된 자료</h2><button class="secondary-button" id="refreshDatasets">새로고침</button></div><div id="datasetList" class="dataset-list">자료를 불러오는 중…</div></div>
       </section>
     </section>
-    <footer class="composer-area"><div class="attachment-strip" id="attachmentStrip"></div><div class="composer"><button class="composer-tool" id="attachButton" title="파일 첨부" aria-label="파일 첨부"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><input id="fileInput" type="file" accept="image/*,audio/wav,audio/x-wav" hidden><textarea id="messageInput" rows="1" placeholder="Aura에게 메시지 보내기"></textarea><button class="composer-tool voice-button" id="voiceButton" title="음성 녹음" aria-label="음성 녹음"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg></button><button class="send-button" id="sendButton" title="보내기" aria-label="보내기"><svg viewBox="0 0 24 24"><path d="M12 19V5m-7 7 7-7 7 7"/></svg></button></div><div class="composer-foot"><span>대화는 현재 브라우저에 저장됩니다.</span><span id="composerStatus">모델 상태 확인 중</span></div></footer>
+    <footer class="composer-area"><div class="attachment-strip" id="attachmentStrip"></div><div class="composer"><button class="composer-tool" id="attachButton" title="파일 첨부" aria-label="파일 첨부"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><input id="fileInput" type="file" accept="image/*,audio/*,.pdf,.docx,.xlsx,.pptx,.txt,.md,.csv,.json,.py,.js" hidden><textarea id="messageInput" rows="1" placeholder="Aura에게 메시지 보내기"></textarea><button class="composer-tool voice-button" id="voiceButton" title="음성 녹음" aria-label="음성 녹음"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg></button><button class="send-button" id="sendButton" title="보내기" aria-label="보내기"><svg viewBox="0 0 24 24"><path d="M12 19V5m-7 7 7-7 7 7"/></svg></button></div><div class="composer-foot"><span>대화는 현재 브라우저에 저장됩니다.</span><span id="composerStatus">모델 상태 확인 중</span></div></footer>
   </main>
 </div>
 <footer class="legal-footer"><a href="/privacy">개인정보 처리방침</a><a href="/terms">서비스 이용약관</a></footer>
