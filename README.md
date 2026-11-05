@@ -1,84 +1,92 @@
 # Aura AI
 
-Aura AI is being developed as its **own language model**, initialized with random weights and trained from text data. It does not call OpenAI, another hosted model, or a third-party inference API, and it does not fine-tune a pretrained model.
+Aura is a local-first AI research project. Its trainable weights are initialized randomly. It does not load Ollama, Hugging Face, pretrained checkpoints, or a third-party foundation model.
 
-## Current implementation
-- `aura/tokenizer.py`: deterministic UTF-8 byte tokenizer with BOS/EOS tokens.
-- `aura/model.py`: decoder-only causal Transformer implemented with PyTorch and memory-efficient scaled dot-product attention.
-- `aura/train.py`: memory-mapped next-byte training, small-batch sampling, validation loss, gradient clipping, and periodic checkpoint saving.
-- `aura/inference.py`: autoregressive generation from Aura's own checkpoint.
-- `app/main.py`: FastAPI health and chat endpoints; chat only responds when the checkpoint is present and loadable.
-- `models/checkpoints/aura-small.pt`: small trained checkpoint included as a deployment artifact so the API service can load a model. The raw corpus is not committed.
-- Web app: separate repository `Workshop-Koharu/Aura-AI-Web`, deployed through Vercel.
+## What exists in this repository
 
-This is a small research prototype, not a generally capable assistant. A working generation endpoint does not imply high-quality, factual, or safe answers. Useful behavior requires a sufficiently large, legally usable corpus, substantial training, evaluation, and suitable compute.
+- Decoder-only transformer language model (12 layers, 512 hidden width, 8 attention heads).
+- Independently initialized image patch encoder and audio spectrogram encoder.
+- Byte-level BPE tokenizer trained from the local corpus.
+- Slow CPU training with resumable checkpoints and process resource limits.
+- Local FastAPI interface, OpenAI-compatible chat endpoint, and MCP tools.
+- Responsive chat UI with local conversation history, image/audio attachments, and microphone recording.
+- PNG brand mark drawn programmatically with transparent background.
 
-## 1. Set up Python
-Use Python 3.11 or 3.12 for smooth local compatibility:
+The model is an experimental from-scratch model, not a pretrained assistant. It will not be intelligent at first. It needs a large, high-quality, legally usable dataset and long training runs. A larger parameter count alone does not create intelligence.
 
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
-```
+## Hardware limits
 
-The project pins a CPU PyTorch build for deployment. Render's environment must include `PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu` so pip can resolve the CPU wheel. Local Windows installs can use the matching CPU build. A CUDA-enabled install requires a compatible NVIDIA GPU, driver, and matching PyTorch build.
+Defaults are deliberately conservative for the i5-10400F / 16 GB RAM / GTX 1050 Ti machine:
 
-## 2. Prepare training data
-`data/train.txt` is generated locally from text data the project is permitted to use. The current corpus is about 20.5 GB. Do not commit `data/train.txt`, `data/source/`, or private data. Byte tokenization supports Korean but represents characters as UTF-8 bytes, which may require several tokens per character.
+- CPU only; GPU disabled.
+- At most 4 logical CPU processors (about one third of 12 logical processors).
+- 4 PyTorch intra-op threads and 1 inter-op thread.
+- 5 GB process-RAM budget; training pauses if the process exceeds it.
+- Batch size 1, sequence length 256, one optimizer update per batch.
+- Below-normal process priority and a 0.75 second pause after each optimizer update.
 
-## 3. Normalize instruction/response examples
+No GPU VRAM is allocated for training. The GPU remains available to Windows and other applications.
 
-`prepare_dialogues.py` extracts prompt/response and role-based conversation pairs from the six local instruction-tuning dataset folders. It writes a separate dialogue corpus and a source manifest. During training, `--dialogue-data` reserves half of each training batch for these normalized conversation examples while sampling the other half from the full corpus. This improves alignment with the `User:` / `Aura:` inference prompt, but does not guarantee assistant-level quality.
+## Start
 
-## 4. Train from random initialization
+~~~powershell
+cd C:\Users\L\Downloads\Koharu\aura-ai
+.\setup.ps1
+.\start.ps1
+~~~
 
-Low-memory CPU example:
+Open http://127.0.0.1:8000
 
-```powershell
-python prepare_dialogues.py --source data/source --output data/dialogue_train.txt --manifest data/DIALOGUE_SOURCES.csv
-python -m aura.train --data data/train.txt --dialogue-data data/dialogue_train.txt --steps 10000 --batch-size 4 --threads 4 --log-every 100 --checkpoint-every 500 --device cpu
-```
+## Training data
 
-The trainer memory-maps the corpus instead of loading the full text into RAM. The current training configuration has 6 Transformer blocks, width 256, context length 256, 4 attention heads, and vocabulary size 258 (about 4.9 million parameters). The tokenizer is byte-level UTF-8, which is robust and simple but inefficient for Korean: one Hangul syllable usually takes three tokens. This is still a small experimental model, not a production-grade conversational assistant. The default checkpoint path is `models/checkpoints/aura-small.pt`.
+- Text: add UTF-8 .txt files under data/text/.
+- Images: place image files under data/image_text/ and add pairs.jsonl records such as {"file":"image_text/cat.jpg","text":"A cat sitting on a chair."}.
+- Audio: place 16-bit PCM WAV files under data/audio_text/ and add pairs.jsonl records such as {"file":"audio_text/hello.wav","text":"안녕하세요."}.
 
-The checked-in checkpoint is an initial deployment artifact. A newly trained checkpoint should be evaluated on held-out prompts before replacing the deployed artifact. Further training overwrites it locally; evaluate it before replacing the deployed artifact. Loss reduction alone does not guarantee useful responses.
+Then use Model training in the app or POST /api/training/start. Training is resumed from data/checkpoints/latest.pt. Stop gracefully with the app or POST /api/training/stop.
 
-## 5. Run the API locally
+Only data you have permission to use should be added. Do not put private or sensitive information into a dataset.
 
-```powershell
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
+## API
 
-- `GET /health`: service liveness and whether a checkpoint file exists.
-- `POST /v1/chat`: autoregressive generation from the local checkpoint.
-- `GET /docs`: interactive API documentation.
+- GET /api/health
+- GET /api/model/status
+- GET /api/training/status
+- POST /api/training/start
+- POST /api/training/stop
+- GET /api/datasets
+- POST /api/datasets/text
+- POST /api/chat
+- POST /api/chat/stream
+- POST /v1/chat/completions
+- GET /api/config
 
-Example request body: `{"messages":[{"role":"user","content":"Hello"}]}`.
+The chat body accepts message, optional image_base64, optional audio_base64, and max_tokens.
 
-## 6. Deploy
+## MCP
 
-- Core/API repository: `Workshop-Koharu/Aura-AI`, branch `main`.
-- Web repository: `Workshop-Koharu/Aura-AI-Web`, branch `main`.
-- Web domain: `https://aura.koharu.live`.
-- API domain: `https://api-aura.koharu.live`.
-- Render blueprint: `render.yaml`.
+Run a local stdio MCP server:
 
-The API requires the checkpoint to exist in the deployed filesystem. The included checkpoint is small enough to ship with this source repository; do not upload raw datasets to GitHub. Render free instances have limited CPU/RAM and may have cold starts. For a much larger model, use a private artifact store or suitable persistent storage instead of committing model weights.
+~~~powershell
+.\start-mcp.ps1
+~~~
 
-## Dataset attribution and project identity
+Tools: health, model_info, generate_text, generate_with_image, generate_with_audio, training_status, start_training, stop_training, list_datasets, add_text_data.
 
-Aura AI is an independently developed personal project, not a project created or operated by the National Information Society Agency (NIA). Where NIA datasets are used, the required attribution is retained as data-source attribution only; each dataset's separate license and terms still apply.
+For a local streamable-HTTP MCP endpoint on `http://127.0.0.1:8001/mcp`:
 
-Required NIA data attribution:
+~~~powershell
+.\start-mcp-http.ps1
+~~~
 
-> 본 AI데이터 등을 이용할 때에는 반드시 한국지능정보사회의 사업결과임을 밝혀야 하며, 본 AI데이터 등을 이용한 2차적 저작물에도 동일하게 밝혀야 합니다.
+Keep MCP bound to localhost. Do not expose local training or file operations directly to the public internet.
 
-Check the dataset's original terms for the exact attribution wording required by its provider.
+## Cloud deployment layout
 
+The public web shell can be hosted on Vercel and protected by Cloudflare. Supabase is reserved for authentication and optional account metadata. Render is reserved for a queue/monitoring service. The local model weights and inference runtime stay on this PC; deploying the static UI does not make the local model remotely reachable.
 
-## Quality checks
-Run `python -m pytest -q` before committing changes. Tests cover UTF-8 round-trips, model tensor shapes, causal attention, and rejection of obviously corrupted short completions. These checks do not establish factual accuracy or conversational quality.
+Cloud integrations are intentionally not provisioned until the correct Render workspace and Supabase organization are confirmed. The local model must not silently fall back to hosted models.
 
-For Korean chat quality, the current byte tokenizer and generic next-byte objective remain major limitations. A more capable next version should train a Korean subword tokenizer from the permitted corpus and train on normalized instruction/response examples, with a held-out evaluation set. Do not claim that increasing parameter count alone fixes nonsensical output.
+## Brand
+
+assets/aura-mark.png is a transparent PNG generated from deterministic vector-like drawing code. No generative image model is used.

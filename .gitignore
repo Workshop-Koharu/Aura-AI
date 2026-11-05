@@ -1,37 +1,14 @@
-# Python
 __pycache__/
 *.py[cod]
-*.egg-info/
 .venv/
-venv/
+.env
+*.log
 .pytest_cache/
 .ruff_cache/
-.coverage
-htmlcov/
-dist/
-build/
-# Training outputs and potentially private/large datasets
-models/checkpoints/
-data/train.txt
-# Secrets and local configuration
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-# Editors / OS
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# AI Hub source archives, generated corpus, and provenance reports (keep local)
-data/source/
-data/SOURCES*.csv
-data/train-test.txt
-data/dialogue_train.txt
-data/DIALOGUE_SOURCES.csv
-data/*prepare.log
-data/*prepare.exit.txt
-data/*.log
-data/*.exit.txt
+data/checkpoints/*
+!data/checkpoints/.gitkeep
+data/tokenizer/*
+!data/tokenizer/.gitkeep
+data/text/private/
+data/image_text/uploads/
+data/audio_text/uploads/

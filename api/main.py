@@ -1,0 +1,167 @@
+import base64
+import json
+from pathlib import Path
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+from PIL import Image
+from aura.config import ROOT, DATA, MODEL, TRAINING
+from aura.engine import ENGINE
+from aura.training.runner import RUNNER
+from aura.multimodal.preprocess import wav_spectrogram
+
+app = FastAPI(title="Aura AI API", version="0.1.0")
+app.mount("/assets", StaticFiles(directory=ROOT / "assets"), name="assets")
+app.mount("/web", StaticFiles(directory=ROOT / "web"), name="web")
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=20000)
+    image_base64: str | None = None
+    audio_base64: str | None = None
+    max_tokens: int = Field(default=160, ge=1, le=512)
+
+class OpenAIMessage(BaseModel):
+    role: str
+    content: str
+
+class OpenAIChatRequest(BaseModel):
+    model: str = "aura-from-scratch"
+    messages: list[OpenAIMessage]
+    max_tokens: int = Field(default=160, ge=1, le=512)
+    stream: bool = False
+
+class TextData(BaseModel):
+    filename: str = Field(default="notes.txt", max_length=100)
+    text: str = Field(min_length=1, max_length=2_000_000)
+
+def decode_file(value):
+    if not value: return None
+    try:
+        if "," in value: value = value.split(",", 1)[1]
+        return base64.b64decode(value, validate=True)
+    except Exception as exc:
+        raise HTTPException(400, "Invalid base64 attachment.") from exc
+
+def append_pair(kind, relative, text):
+    folder = DATA / ("image_text" if kind == "image" else "audio_text")
+    folder.mkdir(parents=True, exist_ok=True)
+    index = folder / "pairs.jsonl"
+    with index.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps({"file": relative, "text": text}, ensure_ascii=False) + "\n")
+
+@app.get("/")
+def index():
+    return FileResponse(ROOT / "web" / "index.html")
+
+@app.get("/api/health")
+def health():
+    return {"ok": True, "engine": "aura-from-scratch", "device": "cpu", "training": RUNNER.status()["status"]}
+
+@app.get("/api/model/status")
+def model_status():
+    return {**ENGINE.status(), "training": RUNNER.status(), "architecture": MODEL.__dict__, "resource_limits": TRAINING}
+
+@app.get("/api/training/status")
+def training_status():
+    return RUNNER.status()
+
+@app.post("/api/training/start")
+def start_training():
+    result = RUNNER.start()
+    if not result.get("started") and result.get("reason") != "already_running":
+        raise HTTPException(409, result.get("reason", "Could not start training."))
+    return result
+
+@app.post("/api/training/stop")
+def stop_training():
+    return RUNNER.stop()
+
+@app.get("/api/datasets")
+def datasets():
+    result = {}
+    for name in ("text", "image_text", "audio_text"):
+        folder = DATA / name
+        result[name] = [str(p.relative_to(DATA)).replace("\\", "/") for p in folder.rglob("*") if p.is_file()]
+    return result
+
+@app.post("/api/datasets/text")
+def add_text(body: TextData):
+    folder = DATA / "text"
+    folder.mkdir(parents=True, exist_ok=True)
+    safe = Path(body.filename).name
+    if not safe.lower().endswith(".txt"): safe += ".txt"
+    target = folder / safe
+    target.write_text(body.text, encoding="utf-8")
+    return {"saved": str(target.relative_to(DATA)), "characters": len(body.text)}
+
+@app.post("/api/datasets/image")
+async def add_image(caption: str = Form(...), file: UploadFile = File(...)):
+    if not caption.strip():
+        raise HTTPException(422, "An image caption is required for training.")
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(415, "Image file required.")
+    raw = await file.read()
+    if len(raw) > 15 * 1024 * 1024: raise HTTPException(413, "Image exceeds 15 MB.")
+    try: Image.open(raw if hasattr(raw, "read") else __import__("io").BytesIO(raw)).verify()
+    except Exception as exc: raise HTTPException(400, "Invalid image file.") from exc
+    folder = DATA / "image_text" / "uploads"
+    folder.mkdir(parents=True, exist_ok=True)
+    name = Path(file.filename or "image.png").name
+    ext = Path(name).suffix.lower() or ".png"
+    target = folder / (str(__import__("uuid").uuid4()) + ext)
+    target.write_bytes(raw)
+    relative = target.relative_to(DATA).as_posix()
+    append_pair("image", relative, caption)
+    return {"saved": relative}
+
+@app.post("/api/datasets/audio")
+async def add_audio(transcript: str = Form(...), file: UploadFile = File(...)):
+    if not transcript.strip():
+        raise HTTPException(422, "An audio transcript is required for training.")
+    raw = await file.read()
+    if len(raw) > 25 * 1024 * 1024: raise HTTPException(413, "Audio exceeds 25 MB.")
+    try: wav_spectrogram(raw)
+    except Exception as exc: raise HTTPException(400, "A valid 16-bit PCM WAV file is required.") from exc
+    folder = DATA / "audio_text" / "uploads"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / (str(__import__("uuid").uuid4()) + ".wav")
+    target.write_bytes(raw)
+    relative = target.relative_to(DATA).as_posix()
+    append_pair("audio", relative, transcript)
+    return {"saved": relative}
+
+@app.post("/api/chat")
+def chat(body: ChatRequest):
+    image = decode_file(body.image_base64)
+    audio = decode_file(body.audio_base64)
+    try:
+        text, meta = ENGINE.generate(body.message, image, audio, body.max_tokens)
+        return {"text": text, "meta": meta}
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+@app.post("/api/chat/stream")
+def chat_stream(body: ChatRequest):
+    result = chat(body)
+    def events():
+        yield "data: " + json.dumps({"delta": result["text"], "done": True}, ensure_ascii=False) + "\n\n"
+        yield "data: [DONE]\n\n"
+    return StreamingResponse(events(), media_type="text/event-stream")
+
+@app.get("/v1/models")
+def models():
+    return {"object": "list", "data": [{"id": "aura-from-scratch", "object": "model", "owned_by": "local"}]}
+
+@app.post("/v1/chat/completions")
+def openai_compatible(body: OpenAIChatRequest):
+    prompt = "\n".join(m.content for m in body.messages if m.role in ("system", "user", "assistant"))
+    try:
+        text, meta = ENGINE.generate(prompt, max_new_tokens=body.max_tokens)
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    return {"id": "aura-local", "object": "chat.completion", "model": body.model, "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}, "meta": meta}
+
+@app.get("/api/config")
+def config():
+    return {"name": "Aura", "version": "0.1.0", "base_model": None, "pretrained_weights": False, "architecture": MODEL.__dict__, "resource_limits": TRAINING}
