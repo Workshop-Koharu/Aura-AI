@@ -1,4 +1,4 @@
-document.body.insertAdjacentHTML("beforeend",'<div class="auth-gate" id="authGate" hidden><section class="auth-card"><img class="auth-logo" src="/assets/aura-mark.png" alt="Aura"><h1 id="authTitle">Aura에 로그인</h1><p>Sign in to sync your conversations across devices and use file attachments.</p><div class="auth-field"><label for="authEmail">이메일</label><input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com"></div><div class="auth-field" id="authPasswordField"><label for="authPassword">비밀번호</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="8자 이상"></div><input type="hidden" id="authMode" value="login"><button class="auth-submit" id="authSubmit">로그인</button><div class="auth-divider">또는</div><button class="auth-google" id="authGoogle"><svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.74 7.18l7.72 6C44.42 38.03 46.98 31.92 46.98 24.55Z"/><path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.2A23.9 23.9 0 0 0 0 24c0 3.87.93 7.53 2.56 10.78l7.97-6.19Z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.72-6c-2.14 1.44-4.89 2.3-8.19 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z"/></svg><span>Google 계정으로 계속하기</span></button><div class="auth-links"><button id="authSwitch">계정이 없나요? 회원가입</button><button id="authForgot">비밀번호 찾기</button></div><p class="auth-status" id="authStatus">Supabase 연결을 확인하고 있습니다.</p><p class="auth-note">Guest conversations are not saved. Sign in to sync chat history and attach files.</p><div class="auth-legal"><a href="/privacy">개인정보 처리방침</a><a href="/terms">서비스 이용약관</a></div><button class="auth-continue" id="authContinue">로그인 없이 계속 사용</button></section></div>');
+document.body.insertAdjacentHTML("beforeend",'<div class="auth-gate" id="authGate" hidden><section class="auth-card"><img class="auth-logo" src="/assets/aura-mark.png" alt="Aura"><h1 id="authTitle">Aura에 로그인</h1><p>Sign in to sync your conversations across devices and use file attachments.</p><div class="auth-field"><label for="authEmail">이메일</label><input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com"></div><div class="auth-field" id="authPasswordField"><label for="authPassword">비밀번호</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="8자 이상"></div><input type="hidden" id="authMode" value="login"><button class="auth-submit" id="authSubmit">로그인</button><div class="auth-divider">또는</div><button class="auth-google" id="authGoogle"><svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.74 7.18l7.72 6C44.42 38.03 46.98 31.92 46.98 24.55Z"/><path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.2A23.9 23.9 0 0 0 0 24c0 3.87.93 7.53 2.56 10.78l7.97-6.19Z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.72-6c-2.14 1.44-4.89 2.3-8.19 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z"/></svg><span>Google 계정으로 계속하기</span></button><div class="auth-links"><button id="authSwitch">계정이 없나요? 회원가입</button><button id="authForgot">비밀번호 찾기</button></div><p class="auth-status" id="authStatus">인증 연결을 확인하고 있습니다.</p><p class="auth-note">Guest conversations are not saved. Sign in to sync chat history and attach files.</p><div class="auth-legal"><a href="/privacy">개인정보 처리방침</a><a href="/terms">서비스 이용약관</a></div><button class="auth-continue" id="authContinue">로그인 없이 계속 사용</button></section></div>');
 const $auth=s=>document.querySelector(s);
 const authState={client:null,session:null,user:null,showGate:false};
 function renderAuraAuth(){
@@ -30,7 +30,7 @@ $auth("#authContinue").onclick=()=>{authState.showGate=false;renderAuraAuth();};
 $auth("#authSwitch").onclick=()=>authMode($auth("#authMode").value==="login"?"signup":"login");
 $auth("#authForgot").onclick=()=>authMode("reset");
 $auth("#authSubmit").onclick=async()=>{
- const c=authState.client;if(!c){$auth("#authStatus").textContent="Supabase 연결 설정이 완료되지 않았습니다.";return;}
+ const c=authState.client;if(!c){$auth("#authStatus").textContent="인증 설정이 완료되지 않았습니다.";return;}
  const mode=$auth("#authMode").value,email=$auth("#authEmail").value.trim(),password=$auth("#authPassword").value;
  if(!email){$auth("#authStatus").textContent="이메일을 입력하세요.";return;}
  if(mode!=="reset"&&password.length<8){$auth("#authStatus").textContent="비밀번호는 8자 이상 입력하세요.";return;}
@@ -47,7 +47,7 @@ $auth("#authSubmit").onclick=async()=>{
  finally{$auth("#authSubmit").disabled=false;}
 };
 $auth("#authGoogle").onclick=async()=>{
- if(!authState.client){$auth("#authStatus").textContent="Supabase 연결 설정이 완료되지 않았습니다.";return;}
+ if(!authState.client){$auth("#authStatus").textContent="인증 설정이 완료되지 않았습니다.";return;}
  $auth("#authGoogle").disabled=true;
  const {error}=await authState.client.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.origin+"/",queryParams:{prompt:"select_account"}}});
  if(error){$auth("#authStatus").textContent=error.message;$auth("#authGoogle").disabled=false;}
@@ -58,7 +58,7 @@ $auth("#accountButton").onclick=async()=>{
 };
 async function initAuraAuth(){
  const cfg=await fetch("/api/public-config",{cache:"no-store"}).then(r=>r.json()).catch(()=>({}));
- if(!cfg.supabase_url||!cfg.supabase_publishable_key){$auth("#authStatus").textContent="Supabase 연결 설정이 완료되지 않았습니다. 비로그인으로 계속 사용할 수 있습니다.";renderAuraAuth();return;}
+ if(!cfg.supabase_url||!cfg.supabase_publishable_key){$auth("#authStatus").textContent="인증 설정이 완료되지 않았습니다. 비로그인으로 계속 사용할 수 있습니다.";renderAuraAuth();return;}
  const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2");
  authState.client=createClient(cfg.supabase_url,cfg.supabase_publishable_key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:"pkce"}});
  const {data,error}=await authState.client.auth.getSession();if(error)throw error;

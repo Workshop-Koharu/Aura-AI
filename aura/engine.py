@@ -21,7 +21,12 @@ class InferenceEngine:
         with self.lock:
             checkpoint = CHECKPOINTS / "latest.pt"
             if not checkpoint.exists():
-                if required: raise RuntimeError("The from-scratch model has not produced a checkpoint yet.")
+                if required:
+                    from aura.training.runner import RUNNER
+                    training = RUNNER.status()
+                    if training.get("status") in ("starting", "running", "stopping"):
+                        raise RuntimeError("Aura 자체 모델이 아직 학습 중입니다. 첫 체크포인트가 저장된 뒤 다시 요청하세요. 현재 학습 단계: {}".format(training.get("step", 0)))
+                    raise RuntimeError("Aura 자체 모델의 체크포인트가 없습니다. Colab에서 자체 학습 데이터 준비와 학습을 완료한 뒤 다시 요청하세요.")
                 return False
             saved = torch.load(checkpoint, map_location=self.device, weights_only=False)
             if self.model is None or int(saved.get("step", 0)) != self.step:

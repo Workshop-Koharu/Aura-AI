@@ -118,7 +118,7 @@ class TrainingRunner:
                     if step % 10 == 0:
                         with self.lock: self.state.update(step=step, loss=running_loss, status="running")
                         self.state_path.write_text(json.dumps(self.status(), ensure_ascii=False, indent=2), encoding="utf-8")
-                    if step % TRAINING["checkpoint_every"] == 0:
+                    if step == 1 or step % TRAINING["checkpoint_every"] == 0:
                         CHECKPOINTS.mkdir(parents=True, exist_ok=True)
                         torch.save({"model": model.state_dict(), "optimizer": optimizer.state_dict(), "step": step, "config": MODEL.__dict__}, latest)
                     time.sleep(TRAINING["sleep_seconds_per_step"])

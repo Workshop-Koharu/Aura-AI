@@ -1,6 +1,12 @@
 import base64
 import json
 import os
+import re
+import html
+import urllib.parse
+import urllib.request
+from html.parser import HTMLParser
+from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
@@ -12,7 +18,57 @@ from aura.engine import ENGINE
 from aura.training.runner import RUNNER
 from aura.multimodal.preprocess import wav_spectrogram
 
-app = FastAPI(title="Aura AI API", version="0.1.0")
+app = FastAPI(title="Aura AI API", version="0.1.0", docs_url="/api/docs", openapi_url="/api/openapi.json")
+
+class DuckDuckGoParser(HTMLParser):
+    def __init__(self):
+        super().__init__(); self.results=[]; self.current=None; self.capture=None
+    def handle_starttag(self, tag, attrs):
+        a=dict(attrs)
+        if tag=="a" and "result__a" in a.get("class",""):
+            self.current={"title":"","url":a.get("href",""),"snippet":""}; self.capture="title"
+        elif self.current and tag in ("a","div") and "result__snippet" in a.get("class",""):
+            self.capture="snippet"
+    def handle_data(self, data):
+        if self.current and self.capture in ("title","snippet"):
+            self.current[self.capture]+=data
+    def handle_endtag(self, tag):
+        if self.current and tag=="a" and self.capture=="title":
+            self.capture=None
+        elif self.current and tag=="a" and self.capture=="snippet":
+            self.capture=None
+            self.results.append(self.current); self.current=None
+        elif self.current and tag=="div" and self.capture=="snippet":
+            self.capture=None
+            self.results.append(self.current); self.current=None
+
+def search_duckduckgo(query, limit=5):
+    query=query.strip()[:300]
+    if not query: return []
+    url="https://html.duckduckgo.com/html/?"+urllib.parse.urlencode({"q":query})
+    request=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 (compatible; AuraAI/1.0)"})
+    try:
+        with urllib.request.urlopen(request,timeout=8) as response:
+            raw=response.read(1_500_000).decode("utf-8","replace")
+        parser=DuckDuckGoParser(); parser.feed(raw)
+        results=[]
+        for item in parser.results:
+            href=html.unescape(item.get("url",""))
+            title=re.sub(r"\s+"," ",html.unescape(item.get("title",""))).strip()
+            snippet=re.sub(r"\s+"," ",html.unescape(item.get("snippet",""))).strip()
+            if href.startswith("//"): href="https:"+href
+            parsed=urllib.parse.urlparse(href)
+            if parsed.netloc.endswith("duckduckgo.com") and parsed.path.startswith("/l/"):
+                target=urllib.parse.parse_qs(parsed.query).get("uddg",[])
+                if target: href=target[0]
+            if title and href.startswith("http"):
+                results.append({"title":title,"url":href,"snippet":snippet})
+            if len(results)>=limit: break
+        return results
+    except Exception:
+        return []
+
+
 
 @app.middleware("http")
 async def require_gateway_secret(request, call_next):
@@ -32,6 +88,7 @@ class ChatRequest(BaseModel):
     audio_base64: str | None = None
     files: list[dict] = Field(default_factory=list)
     max_tokens: int = Field(default=160, ge=1, le=512)
+    web_search: bool = True
 
 class OpenAIMessage(BaseModel):
     role: str
@@ -205,9 +262,14 @@ def chat(body: ChatRequest):
                 prompt += f"\n\n[첨부 문서: {name}]\n{extracted}"
             elif suffix not in {".png", ".jpg", ".jpeg", ".webp", ".wav"}:
                 prompt += f"\n\n[첨부 파일: {name}] 텍스트를 추출할 수 없는 형식입니다."
+    sources=search_duckduckgo(body.message,5) if getattr(body,"web_search",True) else []
+    search_day=datetime.now(timezone.utc).astimezone().date().isoformat()
+    if sources:
+        source_context="\n\n[검색 결과 - {}]\n".format(search_day)+"\n".join("[{}] {}\n{}".format(i+1,x["title"],x["snippet"]) for i,x in enumerate(sources))
+        prompt=(prompt+source_context+"\n검색 결과를 근거로 답하고 확인되지 않은 내용은 추측하지 마세요. 답변에 [1], [2]처럼 출처 번호를 표시하세요.")[:20000]
     try:
         text, meta = ENGINE.generate(prompt[:20000], image, audio, body.max_tokens)
-        return {"text": text, "meta": meta}
+        return {"text": text, "meta": meta, "sources": sources, "search_date": search_day}
     except RuntimeError as exc:
         raise HTTPException(503, str(exc)) from exc
 
