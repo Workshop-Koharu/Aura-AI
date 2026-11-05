@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse, StreamingResponse
@@ -161,6 +162,14 @@ def openai_compatible(body: OpenAIChatRequest):
     except RuntimeError as exc:
         raise HTTPException(503, str(exc)) from exc
     return {"id": "aura-local", "object": "chat.completion", "model": body.model, "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}, "meta": meta}
+
+@app.get("/api/public-config")
+def public_config():
+    return {
+        "supabase_url": os.getenv("SUPABASE_URL", ""),
+        "supabase_publishable_key": os.getenv("SUPABASE_PUBLISHABLE_KEY", ""),
+        "api_base_url": os.getenv("AURA_API_BASE_URL", ""),
+    }
 
 @app.get("/api/config")
 def config():
