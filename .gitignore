@@ -5,6 +5,7 @@ __pycache__/
 *.log
 .pytest_cache/
 .ruff_cache/
+data/training_state.json
 data/checkpoints/*
 !data/checkpoints/.gitkeep
 data/tokenizer/*
