@@ -92,7 +92,8 @@ class TrainingRunner:
             with self.lock: self.state.update(status="running", samples=len(dataset), step=start_step, device=device, threads=threads)
             model.train()
             step, running_loss, base_lr = start_step, 0.0, TRAINING["learning_rate"]
-            while not self.stop_event.is_set() and step < TRAINING["max_steps_per_session"]:
+            session_step_limit = start_step + int(TRAINING["max_steps_per_session"])
+            while not self.stop_event.is_set() and step < session_step_limit:
                 for batch in loader:
                     if self.stop_event.is_set(): break
                     if device == "cpu":

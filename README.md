@@ -1,51 +1,28 @@
 # Aura AI
 
-Aura is a local-first AI research project. Its trainable weights are initialized randomly. It does not load Ollama, Hugging Face, pretrained checkpoints, or a third-party foundation model.
+Aura is an experimental generative AI service built around an independently initialized Transformer model. Its weights are trained from scratch; it does not rely on a pretrained foundation model or third-party model checkpoints.
 
-## What exists in this repository
+## Model architecture
 
-- Decoder-only transformer language model (12 layers, 512 hidden width, 8 attention heads).
+- Decoder-only Transformer language model.
 - Independently initialized image patch encoder and audio spectrogram encoder.
-- Byte-level BPE tokenizer trained from the local corpus.
-- Slow CPU training with resumable checkpoints and process resource limits.
-- Local FastAPI interface, OpenAI-compatible chat endpoint, and MCP tools.
-- Responsive chat UI with local conversation history, image/audio attachments, and microphone recording.
-- PNG brand mark drawn programmatically with transparent background.
+- Byte-level BPE tokenizer trained on the project corpus.
+- Resumable training with periodic checkpoints.
+- HTTP inference API and multimodal request handling.
 
-The model is an experimental from-scratch model, not a pretrained assistant. It will not be intelligent at first. It needs a large, high-quality, legally usable dataset and long training runs. A larger parameter count alone does not create intelligence.
-
-## Hardware limits
-
-Defaults are deliberately conservative for the i5-10400F / 16 GB RAM / GTX 1050 Ti machine:
-
-- CPU only; GPU disabled.
-- At most 4 logical CPU processors (about one third of 12 logical processors).
-- 4 PyTorch intra-op threads and 1 inter-op thread.
-- 5 GB process-RAM budget; training pauses if the process exceeds it.
-- Batch size 1, sequence length 256, one optimizer update per batch.
-- Below-normal process priority and a 0.75 second pause after each optimizer update.
-
-No GPU VRAM is allocated for training. The GPU remains available to Windows and other applications.
-
-## Start
-
-~~~powershell
-cd C:\Users\L\Downloads\Koharu\aura-ai
-.\setup.ps1
-.\start.ps1
-~~~
-
-Open http://127.0.0.1:8000
+Aura is an experimental model, not a pretrained assistant. Initial checkpoints will produce low-quality output until the model has been trained on a sufficiently large, diverse, high-quality corpus. Parameter count alone does not create intelligence.
 
 ## Training data
 
-- Text: add UTF-8 .txt files under data/text/.
-- Images: place image files under data/image_text/ and add pairs.jsonl records such as {"file":"image_text/cat.jpg","text":"A cat sitting on a chair."}.
-- Audio: place 16-bit PCM WAV files under data/audio_text/ and add pairs.jsonl records such as {"file":"audio_text/hello.wav","text":"안녕하세요."}.
+- Text: UTF-8 TXT files under data/text/.
+- Images: image files under data/image_text/ with matching pairs.jsonl captions.
+- Audio: 16-bit PCM WAV files under data/audio_text/ with matching pairs.jsonl transcripts.
 
-Then use Model training in the app or POST /api/training/start. Training is resumed from data/checkpoints/latest.pt. Stop gracefully with the app or POST /api/training/stop.
+Only data that you have permission to use should be included. Do not put private or sensitive information into a training corpus.
 
-Only data you have permission to use should be added. Do not put private or sensitive information into a dataset.
+## Training
+
+The training runner resumes from data/checkpoints/latest.pt. It saves checkpoints periodically and continues from the previous global step after a runtime restart. Training progress depends on the size and quality of the corpus and available compute.
 
 ## API
 
@@ -56,40 +33,17 @@ Only data you have permission to use should be added. Do not put private or sens
 - POST /api/training/stop
 - GET /api/datasets
 - POST /api/datasets/text
-- POST /api/datasets/image (multipart: file, caption)
-- POST /api/datasets/audio (multipart: 16-bit PCM WAV file, transcript)
-- POST /api/chat (optional image_base64, audio_base64)
+- POST /api/datasets/image
+- POST /api/datasets/audio
+- POST /api/chat
 - POST /api/chat/stream
 - GET /v1/models
 - POST /v1/chat/completions
-- GET /api/config
 
-The chat body accepts message, optional image_base64, optional audio_base64, and max_tokens.
+## Local development
 
-## MCP
-
-Run a local stdio MCP server:
-
-~~~powershell
-.\start-mcp.ps1
-~~~
-
-Tools: health, model_info, generate_text, generate_with_image, generate_with_audio, training_status, start_training, stop_training, list_datasets, add_text_data, register_image_caption, register_audio_transcript.
-
-For a local streamable-HTTP MCP endpoint on `http://127.0.0.1:8001/mcp`:
-
-~~~powershell
-.\start-mcp-http.ps1
-~~~
-
-Keep MCP bound to localhost. Do not expose local training or file operations directly to the public internet.
-
-## Cloud deployment layout
-
-The public web shell can be hosted on Vercel and protected by Cloudflare. Supabase is reserved for authentication and optional account metadata. Render is reserved for a queue/monitoring service. The local model weights and inference runtime stay on this PC; deploying the static UI does not make the local model remotely reachable.
-
-Cloudflare Worker landing page is deployed at https://aura-ai-project.codingexpertleon.workers.dev/ with a health endpoint at `/health`. Vercel project linking awaits team authorization. Render's free-tier control-plane blueprint and the Supabase migration are prepared locally; deployment requires selecting the Render workspace and Supabase organization. GitHub changes are committed locally and await push authentication. The local model must not silently fall back to hosted models.
+Run the setup script, start the API process, and open the local address printed by the launcher. Keep administrative and training endpoints private; do not expose them directly to the public internet.
 
 ## Brand
 
-assets/aura-mark.png is a transparent PNG generated from deterministic vector-like drawing code. No generative image model is used.
+assets/aura-mark.png is the project's programmatically generated transparent brand mark.
