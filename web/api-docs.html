@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff"><title>Aura AI API 문서</title>
+<link rel="icon" href="/assets/aura-mark.png"><link rel="stylesheet" href="/style.css">
+<style>
+body{min-height:100vh;background:var(--bg);color:var(--text)}.docs-shell{max-width:980px;margin:0 auto;padding:36px 24px 80px}.docs-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:42px}.docs-brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700;color:inherit;text-decoration:none}.docs-brand img{width:30px;height:30px}.docs-head a:last-child{color:var(--link,#3479c9);font-size:12px;text-decoration:none}.docs-shell h1{font-size:34px;letter-spacing:-1px;margin:8px 0 12px}.docs-lead{color:var(--muted);line-height:1.7;max-width:680px}.docs-section{margin:34px 0;padding:22px;border:1px solid var(--line);border-radius:14px;background:var(--panel,#fff)}.docs-section h2{font-size:19px;margin:0 0 15px}.docs-section h3{font-size:13px;margin:20px 0 8px}.docs-section p,.docs-section li{font-size:13px;line-height:1.7;color:var(--muted)}.docs-section code{font-family:ui-monospace,Consolas,monospace;font-size:12px}.docs-section pre{overflow:auto;padding:16px;border-radius:10px;background:#f1f3f6;color:#202733;line-height:1.6;font-size:12px}.endpoint{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:4px 8px;font:600 11px ui-monospace,monospace}.method{color:#167c50}.notice{padding:12px;border-radius:9px;background:#eef5ff;color:#345d8e;font-size:12px;line-height:1.6}.docs-table{width:100%;border-collapse:collapse;font-size:12px}.docs-table th,.docs-table td{padding:10px;text-align:left;border-bottom:1px solid var(--line)}.docs-table th{color:var(--muted)}html[data-theme=dark] .docs-section pre{background:#151a22;color:#e6edf7}html[data-theme=dark] .notice{background:#1b2b40;color:#b9d5f8}@media(max-width:600px){.docs-shell{padding:22px 14px 60px}.docs-section{padding:16px}.docs-shell h1{font-size:27px}}
+</style>
+</head>
+<body>
+<main class="docs-shell">
+<header class="docs-head"><a class="docs-brand" href="/"><img src="/assets/aura-mark.png" alt="">Aura AI</a><a href="/">← 홈으로</a></header>
+<div class="eyebrow">DEVELOPER DOCUMENTATION</div>
+<h1>Aura API</h1>
+<p class="docs-lead">자체 생성형 모델을 애플리케이션에서 호출하기 위한 HTTP API입니다. API 키는 설정에서 발급하며, 생성 직후 한 번만 표시됩니다.</p>
+<section class="docs-section"><h2>시작하기</h2><ol><li>Aura 계정으로 로그인합니다.</li><li>설정 → API 키에서 키를 발급합니다.</li><li>키를 서버의 비밀 환경 변수에 저장하고 요청의 Bearer 토큰으로 전달합니다.</li></ol><div class="notice">API 키를 브라우저 코드, 공개 저장소 또는 클라이언트 앱에 직접 넣지 마세요. 키가 노출되면 설정에서 즉시 폐기하세요.</div></section>
+<section class="docs-section"><h2>기본 정보</h2><table class="docs-table"><tr><th>항목</th><th>값</th></tr><tr><td>Base URL</td><td><code>https://aura.koharu.live</code></td></tr><tr><td>인증</td><td><code>Authorization: Bearer YOUR_API_KEY</code></td></tr><tr><td>요청 형식</td><td><code>application/json</code></td></tr><tr><td>응답 형식</td><td><code>application/json</code></td></tr></table></section>
+<section class="docs-section"><h2>모델 목록</h2><p><span class="endpoint method">GET</span> <code>/v1/models</code></p><pre>curl https://aura.koharu.live/v1/models \
+  -H "Authorization: Bearer $AURA_API_KEY"</pre><p>사용 가능한 모델 식별자를 반환합니다.</p></section>
+<section class="docs-section"><h2>채팅 생성</h2><p><span class="endpoint method">POST</span> <code>/v1/chat/completions</code></p><h3>요청 본문</h3><pre>{
+  "model": "aura-from-scratch",
+  "messages": [
+    {"role": "system", "content": "Answer in Korean."},
+    {"role": "user", "content": "안녕하세요. Aura를 소개해 주세요."}
+  ],
+  "max_tokens": 160,
+  "stream": false
+}</pre><h3>cURL 예제</h3><pre>curl https://aura.koharu.live/v1/chat/completions \
+  -H "Authorization: Bearer $AURA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "aura-from-scratch",
+    "messages": [{"role":"user","content":"안녕하세요"}],
+    "max_tokens": 160,
+    "stream": false
+  }'</pre><h3>응답 구조</h3><pre>{
+  "id": "aura-local",
+  "object": "chat.completion",
+  "model": "aura-from-scratch",
+  "choices": [{
+    "index": 0,
+    "message": {"role":"assistant","content":"..."},
+    "finish_reason": "stop"
+  }]
+}</pre><p>현재 API는 비스트리밍 응답을 지원합니다. 출력 길이는 1~512 토큰 범위에서 지정할 수 있습니다.</p></section>
+<section class="docs-section"><h2>오류 코드</h2><table class="docs-table"><tr><th>HTTP</th><th>의미</th></tr><tr><td>400</td><td>잘못된 요청 데이터</td></tr><tr><td>401</td><td>API 키가 없거나 유효하지 않음</td></tr><tr><td>413</td><td>요청 또는 첨부 파일 크기 초과</td></tr><tr><td>429</td><td>요청 제한 초과</td></tr><tr><td>503</td><td>추론 서버 또는 체크포인트 준비 안 됨</td></tr></table></section>
+<footer class="docs-lead">Aura AI Developer Documentation</footer>
+</main>
+</body></html>

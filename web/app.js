@@ -61,7 +61,7 @@ function applyLanguage(lang){
  set("#createApiKey",lang==="en"?"Create API key":lang==="ja"?"API キーを発行":"새 API 키 발급");
  $("#apiKeyName").placeholder=lang==="en"?"Key name":lang==="ja"?"キー名":"키 이름";
  $("#profileDisplayName").placeholder=x.profile;$("#aiNickname").placeholder=x.ai;
- set("#settingsAuthAction",isLoggedIn()?x.signOut:x.signIn);
+ set("#settingsAuthAction",isLoggedIn()?x.signOut:x.signIn);window.dispatchEvent(new CustomEvent("aura-language-changed",{detail:{lang}}));
  document.querySelectorAll(".message-actions button span").forEach(e=>e.textContent=x.copy);
 }
 
@@ -102,7 +102,7 @@ async function send(){
   const length={concise:"Keep the answer concise.",balanced:"Use a balanced level of detail.",detailed:"Give a detailed, well-structured answer."}[prefs.responseLength||"balanced"];
   const nickname=prefs.aiNickname||"Aura";
   const systemPrompt="You are "+nickname+", an AI assistant. "+persona+" "+length+" Reply in the user's language. Use structured Markdown when useful.";
-  const body={message:systemPrompt+"\\n\\n"+prompt,web_search:prefs.webSearch!==false,files:files.map(f=>({name:f.name,type:f.type,base64:f.base64}))};
+  const body={message:systemPrompt+"\\n\\n"+prompt,web_search:prefs.webSearch!==false,client_date:new Intl.DateTimeFormat("en-CA").format(new Date()),files:files.map(f=>({name:f.name,type:f.type,base64:f.base64}))};
   const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),data=await res.json();
   if(!res.ok)throw new Error(data.detail||data.error||"Request failed.");
   placeholder.text=data.text||"";placeholder.sources=data.sources||[];placeholder.search_date=data.search_date||null;placeholder.sources=data.sources||[];placeholder.search_date=data.search_date||null;
@@ -128,6 +128,7 @@ $("#voiceButton").onclick=async()=>{if(!isLoggedIn()){window.AuraAuth?.show();re
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();if(isLoggedIn())newChat();else{$("#messageInput").value="";$("#messageInput").focus();}}if(e.key==="Escape")closeSettings();});
 window.addEventListener("aura-auth-changed",()=>{loadSaved();renderPreferences();});
 applyTheme(localStorage.getItem("aura.theme")||"light");
+applyLanguage(localStorage.getItem("aura.language")||"ko");
 renderAll();
 setComposerStatus("Connecting to Aura AI…");
 

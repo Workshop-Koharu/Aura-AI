@@ -83,3 +83,23 @@ async function initAuraAuth(){
 }
 window.AuraAuth={get user(){return authState.user;},get client(){return authState.client;},show:showAuraLogin,refresh:renderAuraAuth};
 authMode("login");renderAuraAuth();initAuraAuth().catch(e=>$auth("#authStatus").textContent="인증 초기화 실패: "+e.message);
+
+window.addEventListener("aura-language-changed",event=>{
+ const lang=event.detail?.lang||"ko";
+ const words={
+ ko:{title:"Aura에 로그인",signup:"계정 만들기",email:"이메일",password:"비밀번호",submit:"로그인",google:"Google 계정으로 계속하기",switch:"계정이 없나요? 회원가입",forgot:"비밀번호 찾기",continue:"로그인 없이 계속 사용",intro:"여러 기기에서 대화를 동기화하고 파일 첨부 기능을 사용하려면 로그인하세요.",note:"비로그인 대화는 저장되지 않습니다. 로그인하면 대화 기록을 동기화하고 파일을 첨부할 수 있습니다."},
+ en:{title:"Sign in to Aura",signup:"Create an account",email:"Email",password:"Password",submit:"Sign in",google:"Continue with Google",switch:"New here? Create an account",forgot:"Forgot password?",continue:"Continue as guest",intro:"Sign in to sync conversations across devices and use file attachments.",note:"Guest conversations are not saved. Sign in to sync chat history and attach files."},
+ ja:{title:"Aura にログイン",signup:"アカウントを作成",email:"メールアドレス",password:"パスワード",submit:"ログイン",google:"Google で続行",switch:"アカウントをお持ちでない方はこちら",forgot:"パスワードをお忘れですか？",continue:"ゲストとして続行",intro:"複数のデバイスで会話を同期し、ファイルを添付するにはログインしてください。",note:"ゲストの会話は保存されません。ログインすると履歴を同期してファイルを添付できます。"}
+ }[lang];
+ if(!words)return;
+ const mode=$auth("#authMode").value;
+ $auth("#authTitle").textContent=mode==="signup"?words.signup:mode==="reset"?(lang==="en"?"Reset password":lang==="ja"?"パスワードを再設定":"비밀번호 재설정"):words.title;
+ $auth("#authEmail").previousElementSibling.textContent=words.email;
+ $auth("#authPassword").previousElementSibling.textContent=words.password;
+ $auth("#authSubmit").textContent=mode==="signup"?words.signup:mode==="reset"?(lang==="en"?"Send reset email":lang==="ja"?"再設定メールを送信":"재설정 이메일 보내기"):words.submit;
+ $auth("#authGoogle").querySelector("span").textContent=words.google;
+ $auth("#authSwitch").textContent=words.switch;$auth("#authForgot").textContent=words.forgot;$auth("#authContinue").textContent=words.continue;
+ $auth("#authGate .auth-card > p").textContent=words.intro;$auth("#authGate .auth-note").textContent=words.note;
+});
+
+window.dispatchEvent(new CustomEvent("aura-language-changed",{detail:{lang:localStorage.getItem("aura.language")||"ko"}}));

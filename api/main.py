@@ -89,6 +89,7 @@ class ChatRequest(BaseModel):
     files: list[dict] = Field(default_factory=list)
     max_tokens: int = Field(default=160, ge=1, le=512)
     web_search: bool = True
+    client_date: str | None = None
 
 class OpenAIMessage(BaseModel):
     role: str
@@ -263,7 +264,7 @@ def chat(body: ChatRequest):
             elif suffix not in {".png", ".jpg", ".jpeg", ".webp", ".wav"}:
                 prompt += f"\n\n[첨부 파일: {name}] 텍스트를 추출할 수 없는 형식입니다."
     sources=search_duckduckgo(body.message,5) if getattr(body,"web_search",True) else []
-    search_day=datetime.now(timezone.utc).astimezone().date().isoformat()
+    search_day=body.client_date if body.client_date and re.fullmatch(r"\d{4}-\d{2}-\d{2}",body.client_date) else datetime.now(timezone.utc).astimezone().date().isoformat()
     if sources:
         source_context="\n\n[검색 결과 - {}]\n".format(search_day)+"\n".join("[{}] {}\n{}".format(i+1,x["title"],x["snippet"]) for i,x in enumerate(sources))
         prompt=(prompt+source_context+"\n검색 결과를 근거로 답하고 확인되지 않은 내용은 추측하지 마세요. 답변에 [1], [2]처럼 출처 번호를 표시하세요.")[:20000]
