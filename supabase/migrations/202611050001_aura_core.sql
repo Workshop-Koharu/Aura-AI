@@ -4,7 +4,7 @@ create table if not exists public.aura_profiles (
 );
 create table if not exists public.aura_conversations (
  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
- title text not null default '새 대화', model_id text not null default 'aura-from-scratch',
+ title text not null default 'New chat', model_id text not null default 'aura-from-scratch',
  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 create index if not exists aura_conversations_user_updated_idx on public.aura_conversations(user_id, updated_at desc);
