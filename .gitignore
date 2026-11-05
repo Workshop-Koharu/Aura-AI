@@ -13,3 +13,5 @@ data/tokenizer/*
 data/text/private/
 data/image_text/uploads/
 data/audio_text/uploads/
+.tools/
+error/
