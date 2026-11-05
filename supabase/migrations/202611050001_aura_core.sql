@@ -38,3 +38,8 @@ create policy "message owner delete" on public.aura_messages for delete to authe
 create policy "api key owner read" on public.aura_api_keys for select to authenticated using ((select auth.uid()) = user_id);
 create policy "api key owner insert" on public.aura_api_keys for insert to authenticated with check ((select auth.uid()) = user_id);
 create policy "api key owner update" on public.aura_api_keys for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+grant select, insert, update, delete on public.aura_profiles to authenticated;
+grant select, insert, update, delete on public.aura_conversations to authenticated;
+grant select, insert, update, delete on public.aura_messages to authenticated;
+grant select, insert, update, delete on public.aura_api_keys to authenticated;

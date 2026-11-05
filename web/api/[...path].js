@@ -4,7 +4,7 @@ module.exports = async function handler(req, res) {
  if(route==="/api/public-config"){res.setHeader("Cache-Control","no-store");return res.status(200).json({supabase_url:process.env.SUPABASE_URL||"",supabase_publishable_key:process.env.SUPABASE_PUBLISHABLE_KEY||"",api_base_url:""});}
  if(route==="/api/health")return res.status(200).json({ok:true,service:"aura-web-gateway"});
  const base=process.env.AURA_INFERENCE_URL,authorization=req.headers.authorization||"";
- const guestAllowed=(req.method==="POST"&&route==="/api/chat")||(req.method==="GET"&&(route==="/api/model/status"||route==="/api/training/status"));
+ const guestAllowed=(req.method==="POST"&&route==="/api/chat")||(req.method==="GET"&&route==="/api/model/status");
  if(!authorization.startsWith("Bearer ")&&!guestAllowed)return res.status(401).json({error:"Sign-in required for this feature."});
  if(authorization.startsWith("Bearer ")){
   const supabaseUrl=process.env.SUPABASE_URL,publishableKey=process.env.SUPABASE_PUBLISHABLE_KEY;

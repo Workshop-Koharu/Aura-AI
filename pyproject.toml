@@ -1,13 +1,22 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "aura-ai"
-version = "0.1.0"
-description = "From-scratch local multimodal AI research project"
-requires-python = ">=3.14"
-dependencies = ["fastapi", "uvicorn", "torch", "numpy", "Pillow", "psutil", "mcp"]
+name = "aura-ai-control-plane"
+version = "0.2.0"
+description = "Aura AI global service control plane"
+requires-python = ">=3.12"
+dependencies = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["render_control*"]
+namespaces = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py312"
