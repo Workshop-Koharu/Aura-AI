@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from PIL import Image
@@ -13,6 +13,16 @@ from aura.training.runner import RUNNER
 from aura.multimodal.preprocess import wav_spectrogram
 
 app = FastAPI(title="Aura AI API", version="0.1.0")
+
+@app.middleware("http")
+async def require_gateway_secret(request, call_next):
+    secret = os.getenv("AURA_GATEWAY_SECRET", "")
+    if secret and request.url.path != "/api/health":
+        if request.headers.get("x-aura-gateway-key") != secret:
+            return JSONResponse(status_code=401, content={"error": "Unauthorized inference gateway."})
+    return await call_next(request)
+
+
 app.mount("/assets", StaticFiles(directory=ROOT / "assets"), name="assets")
 app.mount("/web", StaticFiles(directory=ROOT / "web"), name="web")
 
@@ -57,7 +67,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "engine": "aura-from-scratch", "device": "cpu", "training": RUNNER.status()["status"]}
+    return {"ok": True, "engine": "aura-from-scratch", "device": ENGINE.status()["device"], "training": RUNNER.status()["status"]}
 
 @app.get("/api/model/status")
 def model_status():
