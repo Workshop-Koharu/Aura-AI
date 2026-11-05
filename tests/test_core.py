@@ -1,7 +1,11 @@
 import torch
+from fastapi.testclient import TestClient
 from aura.tokenizer import AuraTokenizer, BOS, EOS
 from aura.models.transformer import AuraModel
 from aura.config import ModelConfig
+from api.main import app
+
+client = TestClient(app)
 
 def test_tokenizer_roundtrip():
     samples = ["안녕하세요 Aura", "Python is useful.", "이미지와 음성"]
@@ -32,3 +36,16 @@ def test_model_image_and_audio_forward():
     logits, loss = model(ids, image=image, audio=audio, labels=ids)
     assert logits.shape == (1, 10, 300)
     assert torch.isfinite(loss)
+
+def test_local_api_reports_untrained_model():
+    health = client.get("/api/health")
+    status = client.get("/api/model/status")
+    assert health.status_code == 200
+    assert health.json()["engine"] == "aura-from-scratch"
+    assert status.status_code == 200
+    assert status.json()["checkpoint_exists"] is False
+    assert status.json()["model_parameters"] == 47895456
+
+def test_chat_refuses_to_claim_untrained_ability():
+    response = client.post("/api/chat", json={"message": "안녕"})
+    assert response.status_code == 503

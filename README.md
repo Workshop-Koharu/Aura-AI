@@ -85,7 +85,7 @@ Keep MCP bound to localhost. Do not expose local training or file operations dir
 
 The public web shell can be hosted on Vercel and protected by Cloudflare. Supabase is reserved for authentication and optional account metadata. Render is reserved for a queue/monitoring service. The local model weights and inference runtime stay on this PC; deploying the static UI does not make the local model remotely reachable.
 
-Cloud integrations are intentionally not provisioned until the correct Render workspace and Supabase organization are confirmed. The local model must not silently fall back to hosted models.
+Cloudflare Worker landing page is deployed at https://aura-ai-project.codingexpertleon.workers.dev/ with a health endpoint at `/health`. Vercel project linking awaits team authorization. Render's free-tier control-plane blueprint and the Supabase migration are prepared locally; deployment requires selecting the Render workspace and Supabase organization. GitHub changes are committed locally and await push authentication. The local model must not silently fall back to hosted models.
 
 ## Brand
 

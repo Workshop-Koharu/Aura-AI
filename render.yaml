@@ -2,7 +2,7 @@ services:
   - type: web
     name: aura-control-plane
     runtime: python
-    plan: starter
+    plan: free
     region: singapore
     buildCommand: pip install -r render-control-requirements.txt
     startCommand: uvicorn render_control.main:app --host 0.0.0.0 --port $PORT
