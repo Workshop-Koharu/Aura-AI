@@ -56,8 +56,11 @@ Only data you have permission to use should be added. Do not put private or sens
 - POST /api/training/stop
 - GET /api/datasets
 - POST /api/datasets/text
-- POST /api/chat
+- POST /api/datasets/image (multipart: file, caption)
+- POST /api/datasets/audio (multipart: 16-bit PCM WAV file, transcript)
+- POST /api/chat (optional image_base64, audio_base64)
 - POST /api/chat/stream
+- GET /v1/models
 - POST /v1/chat/completions
 - GET /api/config
 
