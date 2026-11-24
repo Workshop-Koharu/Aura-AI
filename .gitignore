@@ -48,3 +48,13 @@ next-env.d.ts
 /kaggle/**/outputs/
 
 /error/
+
+.aura-gateway-secret
+*.credentials.json
+
+
+/__pycache__/
+*.py[cod]
+*.pt
+.aura-gateway-secret
+

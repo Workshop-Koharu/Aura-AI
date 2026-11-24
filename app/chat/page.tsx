@@ -1,8 +1,10 @@
 import {redirect} from "next/navigation";
+import {connection} from "next/server";
 import ChatClient from "./chat-client";
 import {createClient} from "@/lib/supabase/server";
 export const instant=false;
 export default async function ChatPage({searchParams}:{searchParams:Promise<{message?:string;id?:string}>}){
+ await connection();
  const params=await searchParams;const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();
  if(!user){const target="/chat"+(params.message?"?message="+encodeURIComponent(params.message):params.id?"?id="+encodeURIComponent(params.id):"");redirect("/login?next="+encodeURIComponent(target));}
  let initialMessages:{role:"user"|"assistant";content:string}[]=[];
