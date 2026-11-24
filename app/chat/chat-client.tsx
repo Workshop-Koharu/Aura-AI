@@ -12,6 +12,7 @@ export default function ChatClient({ initialMessage }: { initialMessage: string 
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const sentInitial = useRef(false);
@@ -30,9 +31,10 @@ export default function ChatClient({ initialMessage }: { initialMessage: string 
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: next, conversationId }),
       });
       const data = await response.json();
+      if (data.conversationId) setConversationId(data.conversationId);
       if (!response.ok) throw new Error(data.error || "응답을 가져오지 못했습니다.");
       setMessages([...next, { role: "assistant", content: data.content }]);
     } catch (cause) {
@@ -40,7 +42,7 @@ export default function ChatClient({ initialMessage }: { initialMessage: string 
     } finally {
       setLoading(false);
     }
-  }, [loading, messages]);
+  }, [conversationId, loading, messages]);
 
   useEffect(() => {
     if (initialMessage && !sentInitial.current) {
