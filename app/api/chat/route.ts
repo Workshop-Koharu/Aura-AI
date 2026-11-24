@@ -16,7 +16,7 @@ export async function POST(request:NextRequest){
  const {error:saveError}=await supabase.from("messages").insert({conversation_id:conversationId,user_id:user.id,role:"user",content:latest.content});
  if(saveError)return NextResponse.json({error:"메시지를 저장하지 못했습니다."},{status:500});
  const endpoint=process.env.AURA_MODEL_API_URL||process.env.AURA_INFERENCE_URL,apiKey=process.env.AURA_MODEL_API_KEY||process.env.AURA_GATEWAY_SECRET;
- if(!endpoint)return NextResponse.json({error:"모델 추론 서버가 아직 연결되지 않았습니다."},{status:503});
+ if(!endpoint)return NextResponse.json({error:"모델 추론 서버가 아직 연결되지 않았습니다.",conversationId},{status:503});
  try{
   const upstream=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json",...(apiKey?{Authorization:"Bearer "+apiKey}:{})},body:JSON.stringify({model:"aura",messages,stream:false}),cache:"no-store",signal:AbortSignal.timeout(90000)});
   const payload=await upstream.json().catch(()=>null);
