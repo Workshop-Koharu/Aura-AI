@@ -43,12 +43,12 @@ The app includes Terms, Privacy and AI Transparency pages. Before broad internat
 Never commit `.env.local`, OAuth client secrets, inference secrets, Kaggle credentials or model checkpoint files.
 
 
-## Kaggle-trained model inference
+## Kaggle-hosted model inference
 
-The Aura Korean Chat SFT v2 Kaggle kernel is the training job, not a permanent public inference server. The completed model artifacts are downloaded into the ignored local path `kaggle/aura-ai-korean-chat-sft-v2/outputs/Aura-AI`. The local GPU inference API loads `best_chat_sft.pt` and its paired `aura-bpe.json` tokenizer and exposes an OpenAI-compatible `/v1/chat/completions` endpoint.
+The trained Aura checkpoint is stored in the private Kaggle dataset `koharu81/aura-korean-chat-sft-v2-inference`. The private Kaggle inference notebook is `koharu81/aura-korean-chat-sft-v2-gpu-inference`; it loads the checkpoint and tokenizer directly from Kaggle, starts the FastAPI inference API, and connects the named Cloudflare Tunnel. The PC is not part of the serving path.
 
-The Cloudflare Tunnel `aura-ai-api` routes `https://inference.koharu.live` to the local API on port 8000. Vercel calls this endpoint server-to-server with the secret `AURA_MODEL_API_KEY`; the secret is never exposed to browser code. PostgreSQL remains storage only.
+Vercel calls `https://inference.koharu.live/v1/chat/completions` server-to-server with `AURA_MODEL_API_KEY`. The Kaggle notebook reads the matching key from Kaggle Secrets under `AURA_GATEWAY_SECRET`. Set that Kaggle secret to the same value as the Vercel production `AURA_MODEL_API_KEY` before running the latest notebook version. Never commit the key or put it in browser-visible variables.
 
-Run `start-aura-inference.ps1` after signing in to Windows to start the model API and tunnel. A Windows Scheduled Task named `Aura AI Inference` is configured to do this at logon. The PC must remain powered on, awake, connected to the internet, and running the GPU API for inference requests to succeed. Kaggle notebook sessions themselves are not used as always-on serving infrastructure.
+Kaggle notebook sessions are temporary and have runtime/accelerator quotas; they are suitable for cloud experiments and temporary inference, not guaranteed 24/7 production hosting. The current active runtime is CPU because the Kaggle GPU request was queued. A permanent global service needs an always-on inference host or managed GPU endpoint.
 
-The current checkpoint is a 47.3M-parameter custom model. The training run completed 4,000 SFT steps (best checkpoint at step 3,900; validation loss 3.2658) using 23,742 training and 2,638 validation examples. The current smoke tests show that response quality still needs substantial improvement before describing the model as production-quality or globally scalable.
+The current checkpoint is a 47.3M-parameter custom model. The training run completed 4,000 SFT steps (best checkpoint at step 3,900; validation loss 3.2658) using 23,742 training and 2,638 validation examples. The inference smoke test confirms the cloud endpoint responds, but generated text quality still needs substantial improvement before production launch.
