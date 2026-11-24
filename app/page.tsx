@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { ArrowUp, ChevronDown, Menu, Plus, Sparkles } from "lucide-react";
 
 const suggestions = [
@@ -12,22 +14,23 @@ const suggestions = [
 export default function Home() {
   const [message, setMessage] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
 
   function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = message.trim();
     if (!value) return;
-    window.location.href = `/chat?message=${encodeURIComponent(value)}`;
+    router.push(`/chat?message=${encodeURIComponent(value)}`);
   }
 
   return (
     <main className="app-shell">
       <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
         <div className="brand">
-          <img src="https://cdn.discordapp.com/attachments/1572752814092849313/1572752814554226809/aura-mark.png?ex=6b06c3f3&is=6b057273&hm=a34a78e1d0b73c92e017785b7107e030bd5fb898913d503ed2da2349c5119b12&" alt="Aura" />
+          <Image src="https://cdn.discordapp.com/attachments/1572752814092849313/1572752814554226809/aura-mark.png?ex=6b06c3f3&is=6b057273&hm=a34a78e1d0b73c92e017785b7107e030bd5fb898913d503ed2da2349c5119b12&" alt="Aura" width={29} height={29} unoptimized />
           <span>Aura</span>
         </div>
-        <button className="new-chat" onClick={() => (window.location.href = "/")}><Plus size={17} /> 새 대화</button>
+        <button className="new-chat" onClick={() => router.push("/")}><Plus size={17} /> 새 대화</button>
         <div className="sidebar-bottom">
           <div className="workspace-label">WORKSPACE</div>
           <div className="workspace-row"><span className="workspace-dot" /> 개인 작업공간</div>
