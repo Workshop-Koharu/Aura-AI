@@ -1,18 +1,18 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowUp, Plus, Sparkles, UserRound } from "lucide-react";
+import { ArrowUp, Sparkles, UserRound } from "lucide-react";
+import Sidebar from "../sidebar";
 
 type Message = { role: "user" | "assistant"; content: string };
 
-export default function ChatClient({ initialMessage }: { initialMessage: string }) {
+export default function ChatClient({ initialMessage, initialConversationId, initialMessages = [] }: { initialMessage: string; initialConversationId: string | null; initialMessages?: Message[] }) {
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const sentInitial = useRef(false);
@@ -34,7 +34,7 @@ export default function ChatClient({ initialMessage }: { initialMessage: string 
         body: JSON.stringify({ messages: next, conversationId }),
       });
       const data = await response.json();
-      if (data.conversationId) setConversationId(data.conversationId);
+      if (data.conversationId) { setConversationId(data.conversationId); if (!conversationId) router.replace("/chat?id="+encodeURIComponent(data.conversationId)); }
       if (!response.ok) throw new Error(data.error || "응답을 가져오지 못했습니다.");
       setMessages([...next, { role: "assistant", content: data.content }]);
     } catch (cause) {
@@ -42,7 +42,7 @@ export default function ChatClient({ initialMessage }: { initialMessage: string 
     } finally {
       setLoading(false);
     }
-  }, [conversationId, loading, messages]);
+  }, [conversationId, loading, messages, router]);
 
   useEffect(() => {
     if (initialMessage && !sentInitial.current) {
@@ -58,11 +58,7 @@ export default function ChatClient({ initialMessage }: { initialMessage: string 
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
-        <div className="brand"><Image src="https://cdn.discordapp.com/attachments/1572752814092849313/1572752814554226809/aura-mark.png?ex=6b06c3f3&is=6b057273&hm=a34a78e1d0b73c92e017785b7107e030bd5fb898913d503ed2da2349c5119b12&" alt="Aura" width={29} height={29} unoptimized /><span>Aura</span></div>
-        <button className="new-chat" onClick={() => router.push("/")}><Plus size={17} /> 새 대화</button>
-        <div className="sidebar-bottom"><div className="workspace-label">WORKSPACE</div><div className="workspace-row"><span className="workspace-dot" /> 개인 작업공간</div><div className="sidebar-footer">KCS · Koharu Coding Server</div></div>
-      </aside>
+      <Sidebar />
       <section className="main-panel">
         <header className="topbar"><div className="model-picker">Aura <Sparkles size={14} /></div><div className="topbar-spacer" /><a className="topbar-link" href="mailto:admin@koharu.live">문의하기</a></header>
         <div className="chat-content">
