@@ -1,0 +1,13 @@
+.git
+node_modules
+.next
+.vercel
+.env*
+error
+kaggle
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.zip
+*.jsonl
