@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Keep authenticated routes request-scoped. Do not cache personalized HTML.
   turbopack: {
     rules: {
       "*.css": {
