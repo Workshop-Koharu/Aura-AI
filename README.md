@@ -41,3 +41,14 @@ The Supabase project contains `profiles`, `conversations` and `messages`. RLS po
 The app includes Terms, Privacy and AI Transparency pages. Before broad international launch, complete the operator's legal identity/address, region-specific processor and transfer disclosures, retention periods and contact details against the actual deployed infrastructure.
 
 Never commit `.env.local`, OAuth client secrets, inference secrets, Kaggle credentials or model checkpoint files.
+
+
+## Kaggle-trained model inference
+
+The Aura Korean Chat SFT v2 Kaggle kernel is the training job, not a permanent public inference server. The completed model artifacts are downloaded into the ignored local path `kaggle/aura-ai-korean-chat-sft-v2/outputs/Aura-AI`. The local GPU inference API loads `best_chat_sft.pt` and its paired `aura-bpe.json` tokenizer and exposes an OpenAI-compatible `/v1/chat/completions` endpoint.
+
+The Cloudflare Tunnel `aura-ai-api` routes `https://inference.koharu.live` to the local API on port 8000. Vercel calls this endpoint server-to-server with the secret `AURA_MODEL_API_KEY`; the secret is never exposed to browser code. PostgreSQL remains storage only.
+
+Run `start-aura-inference.ps1` after signing in to Windows to start the model API and tunnel. A Windows Scheduled Task named `Aura AI Inference` is configured to do this at logon. The PC must remain powered on, awake, connected to the internet, and running the GPU API for inference requests to succeed. Kaggle notebook sessions themselves are not used as always-on serving infrastructure.
+
+The current checkpoint is a 47.3M-parameter custom model. The training run completed 4,000 SFT steps (best checkpoint at step 3,900; validation loss 3.2658) using 23,742 training and 2,638 validation examples. The current smoke tests show that response quality still needs substantial improvement before describing the model as production-quality or globally scalable.
