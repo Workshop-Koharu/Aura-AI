@@ -8,10 +8,14 @@ export async function sendAuraEmail(to:string,subject:string,html:string){
  const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({from:FROM,to:[to],subject,html}),cache:"no-store",signal:AbortSignal.timeout(12000)});
  return r.ok?{ok:true}:{ok:false,error:`Resend HTTP ${r.status}`};
 }
+// Welcome mail is only eligible immediately after account creation. A persistent
+// primary-key claim makes the send idempotent across duplicate OAuth callbacks.
 export async function sendWelcomeOnce(s:SupabaseClient,u:User){
  if(!u.email)return;
- const {data,error}=await s.from("auth_welcome_notifications").upsert({user_id:u.id},{onConflict:"user_id",ignoreDuplicates:true}).select("user_id");
- if(error||!data?.length)return;
+ const created=Date.parse(u.created_at||"");
+ if(!Number.isFinite(created)||Date.now()-created>24*60*60*1000||created>Date.now()+60_000)return;
+ const {data,error}=await s.from("auth_welcome_notifications").insert({user_id:u.id}).select("user_id").maybeSingle();
+ if(error||!data)return;
  await sendAuraEmail(u.email,"Aura AI에 오신 것을 환영합니다",`<div style="font-family:Arial;max-width:560px;margin:32px auto;padding:32px;color:#20202a;border:1px solid #e7e5ee;border-radius:16px"><h1>Aura AI에 오신 것을 환영합니다</h1><p>${esc(u.email)} 계정의 가입이 완료되었습니다.</p><p><a href="${APP_URL}/chat">Aura AI 시작하기</a></p><p>KCS - Koharu Coding Server</p></div>`);
 }
 export async function notifyLoginIfNew(s:SupabaseClient,u:User,request:Request){
