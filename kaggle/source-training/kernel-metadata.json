@@ -1,0 +1,26 @@
+{
+  "id": "koharu81/aura-ai-korean-chat-sft-v2",
+  "id_no": 146901591,
+  "title": "Aura AI Korean Chat SFT v2",
+  "code_file": "aura-ai-korean-chat-sft-v2.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [
+    "gpu",
+    "korean"
+  ],
+  "dataset_sources": [
+    "koharu81/aura-ai-bilingual-base",
+    "koharu81/aura-ai-pretraining",
+    "koharu81/aura-ai-sft-v2-source"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:fc720c15545eb096a510e1f085b17fc118387a007599424d953a4f327b71cacf",
+  "machine_shape": "NvidiaTeslaT4"
+}
