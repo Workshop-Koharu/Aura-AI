@@ -9,8 +9,7 @@ type Msg = { role: "user" | "assistant"; content: string };
 
 function modelChatUrl(value: string) {
   const trimmed = value.trim().replace(/\/+$/, "");
-  if (trimmed.endsWith("/v1/chat/completions")) return trimmed;
-  if (trimmed.endsWith("/chat/completions")) return trimmed;
+  if (trimmed.endsWith("/v1/chat/completions") || trimmed.endsWith("/chat/completions")) return trimmed;
   const base = trimmed.replace(/\/(health|v1\/models)$/, "");
   return base + "/v1/chat/completions";
 }
@@ -25,10 +24,9 @@ function extractContent(payload: any): string | null {
     payload?.output;
   if (typeof value === "string") return value.trim() || null;
   if (Array.isArray(value)) {
-    const text = value
-      .map((part) => typeof part === "string" ? part : typeof part?.text === "string" ? part.text : "")
-      .filter(Boolean)
-      .join("");
+    const text = value.map((part) =>
+      typeof part === "string" ? part : typeof part?.text === "string" ? part.text : ""
+    ).filter(Boolean).join("");
     return text.trim() || null;
   }
   return null;
@@ -43,23 +41,18 @@ export async function POST(request: NextRequest) {
   if (authError || !user) return json({ error: "로그인이 필요합니다." }, 401);
 
   let body: { messages?: Msg[]; conversationId?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return json({ error: "요청 형식이 올바르지 않습니다." }, 400);
-  }
+  try { body = await request.json(); }
+  catch { return json({ error: "요청 형식이 올바르지 않습니다." }, 400); }
 
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     return json({ error: "메시지가 비어 있습니다." }, 400);
   }
-  const messages = body.messages
-    .filter((message): message is Msg =>
-      !!message &&
-      (message.role === "user" || message.role === "assistant") &&
-      typeof message.content === "string" &&
-      message.content.trim().length > 0
-    )
-    .slice(-24);
+  const messages = body.messages.filter((message): message is Msg =>
+    !!message &&
+    (message.role === "user" || message.role === "assistant") &&
+    typeof message.content === "string" &&
+    message.content.trim().length > 0
+  ).slice(-24);
 
   if (!messages.length || messages.at(-1)?.role !== "user") {
     return json({ error: "마지막 메시지는 사용자 입력이어야 합니다." }, 400);
@@ -70,56 +63,41 @@ export async function POST(request: NextRequest) {
 
   let conversationId = body.conversationId;
   if (conversationId) {
-    const { data, error } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("id", conversationId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const { data, error } = await supabase.from("conversations")
+      .select("id").eq("id", conversationId).eq("user_id", user.id).maybeSingle();
     if (error || !data) return json({ error: "대화를 찾을 수 없습니다." }, 404);
   } else {
     const title = messages.filter((message) => message.role === "user").at(-1)?.content.slice(0, 80) ?? "새 대화";
-    const { data, error } = await supabase
-      .from("conversations")
-      .insert({ user_id: user.id, title })
-      .select("id")
-      .single();
+    const { data, error } = await supabase.from("conversations")
+      .insert({ user_id: user.id, title }).select("id").single();
     if (error || !data) return json({ error: "대화를 저장하지 못했습니다." }, 500);
     conversationId = data.id;
   }
 
   const latest = messages.at(-1)!;
   const { error: userSaveError } = await supabase.from("messages").insert({
-    conversation_id: conversationId,
-    user_id: user.id,
-    role: "user",
-    content: latest.content,
+    conversation_id: conversationId, user_id: user.id, role: "user", content: latest.content,
   });
   if (userSaveError) return json({ error: "사용자 메시지를 저장하지 못했습니다." }, 500);
 
+  const now = new Date().toISOString();
+  const { error: titleUpdateError } = await supabase.from("conversations")
+    .update({ title: latest.content.slice(0, 80), updated_at: now })
+    .eq("id", conversationId).eq("user_id", user.id).eq("title", "새 대화");
+  if (titleUpdateError) console.error("[Aura chat] conversation title update failed", titleUpdateError.message);
+
   const endpoint = process.env.AURA_MODEL_API_URL || process.env.AURA_INFERENCE_URL || "";
-  // Prefer the gateway secret used by the Kaggle runtime when both names exist.
   const key = process.env.AURA_GATEWAY_SECRET || process.env.AURA_MODEL_API_KEY || "";
   if (!endpoint) return json({ error: "모델 추론 서버 주소가 설정되지 않았습니다.", conversationId }, 503);
 
   try {
     const upstream = await fetch(modelChatUrl(endpoint), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(key ? { Authorization: `Bearer ${key}` } : {}),
-      },
-      body: JSON.stringify({
-        model: "aura",
-        messages,
-        stream: false,
-        max_tokens: 384,
-        temperature: 0.55,
-      }),
+      headers: { "Content-Type": "application/json", ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+      body: JSON.stringify({ model: "aura", messages, stream: false, max_tokens: 160, temperature: 0.55 }),
       cache: "no-store",
       signal: AbortSignal.timeout(55000),
     });
-
     const raw = await upstream.text();
     let payload: any = null;
     try { payload = raw ? JSON.parse(raw) : null; } catch { /* handled below */ }
@@ -137,21 +115,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: assistantSaveError } = await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      user_id: user.id,
-      role: "assistant",
-      content,
+      conversation_id: conversationId, user_id: user.id, role: "assistant", content,
     });
     if (assistantSaveError) {
       console.error("[Aura chat] assistant message save failed", assistantSaveError.message);
       return json({ error: "AI 답변 저장에 실패했습니다.", conversationId }, 500);
     }
 
-    await supabase.from("conversations")
-      .update({ updated_at: new Date().toISOString() })
-      .eq("id", conversationId)
-      .eq("user_id", user.id);
-
+    await supabase.from("conversations").update({ updated_at: new Date().toISOString() })
+      .eq("id", conversationId).eq("user_id", user.id);
     return json({ content, conversationId });
   } catch (error) {
     const timedOut = error instanceof Error && error.name === "TimeoutError";

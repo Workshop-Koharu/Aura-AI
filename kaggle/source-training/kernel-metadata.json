@@ -16,7 +16,8 @@
   "dataset_sources": [
     "koharu81/aura-ai-bilingual-base",
     "koharu81/aura-ai-pretraining",
-    "koharu81/aura-ai-sft-v2-source"
+    "koharu81/aura-ai-sft-v2-source",
+    "koharu81/aura-korean-chat-sft-v2-inference"
   ],
   "kernel_sources": [],
   "competition_sources": [],

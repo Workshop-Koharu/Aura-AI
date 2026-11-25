@@ -1,0 +1,19 @@
+{
+  "id": "koharu81/aura-korean-chat-sft-v2-gpu-inference",
+  "title": "Aura Korean Chat SFT v2 GPU Inference",
+  "code_file": "aura-korean-chat-sft-v2-gpu-inference.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [
+    "koharu81/aura-korean-chat-sft-v2-inference",
+    "koharu81/aura-ai-private-runtime"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}

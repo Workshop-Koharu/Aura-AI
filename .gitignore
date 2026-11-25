@@ -47,7 +47,6 @@ next-env.d.ts
 !.env.example
 /kaggle/**/outputs/
 /kaggle/serving-dataset/
-/kaggle/inference-kernel/
 .aura-kaggle-tunnel-token
 
 /error/

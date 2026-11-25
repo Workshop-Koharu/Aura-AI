@@ -14,15 +14,26 @@ export default function ChatClient({ initialMessage, initialConversationId, init
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
+  const [, setConversationId] = useState<string | null>(initialConversationId);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const sentInitial = useRef(false);
   const sending = useRef(false);
+  const conversationIdRef = useRef<string | null>(initialConversationId);
   const messagesRef = useRef<Message[]>(initialMessages);
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, loading]);
+
+  const applyConversationId = useCallback((id: string) => {
+    conversationIdRef.current = id;
+    setConversationId(id);
+    const target = `/chat?id=${encodeURIComponent(id)}`;
+    if (window.location.pathname + window.location.search !== target) {
+      window.history.replaceState(null, "", target);
+    }
+    window.dispatchEvent(new Event("aura:conversations-refresh"));
+  }, []);
 
   const send = useCallback(async (raw: string) => {
     const content = raw.trim();
@@ -37,16 +48,38 @@ export default function ChatClient({ initialMessage, initialConversationId, init
     setLoading(true);
 
     try {
+      let activeId = conversationIdRef.current;
+      if (!activeId) {
+        const createResponse = await fetch("/api/conversations", {
+          method: "POST",
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        const created = await createResponse.json().catch(() => null) as {
+          conversationId?: unknown; error?: unknown;
+        } | null;
+        if (!createResponse.ok || typeof created?.conversationId !== "string") {
+          throw new Error(typeof created?.error === "string" ? created.error : "새 대화를 만들지 못했습니다.");
+        }
+        activeId = created.conversationId;
+        applyConversationId(activeId);
+      }
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ messages: next, conversationId }),
+        body: JSON.stringify({ messages: next, conversationId: activeId }),
       });
       const data = await response.json().catch(() => null) as {
         content?: unknown; conversationId?: unknown; error?: unknown;
       } | null;
 
+      if (typeof data?.conversationId === "string" && data.conversationId !== conversationIdRef.current) {
+        applyConversationId(data.conversationId);
+      } else {
+        window.dispatchEvent(new Event("aura:conversations-refresh"));
+      }
       if (!response.ok) {
         throw new Error(typeof data?.error === "string" ? data.error : `요청 실패 (HTTP ${response.status})`);
       }
@@ -54,14 +87,6 @@ export default function ChatClient({ initialMessage, initialConversationId, init
         throw new Error("모델 서버가 빈 답변을 반환했습니다. 잠시 후 다시 시도해 주세요.");
       }
 
-      const resolvedId = typeof data.conversationId === "string" ? data.conversationId : conversationId;
-      if (resolvedId) {
-        setConversationId(resolvedId);
-        if (!conversationId) {
-          // Keep the current client tree mounted; Next.js also syncs native history updates.
-          window.history.replaceState(null, "", `/chat?id=${encodeURIComponent(resolvedId)}`);
-        }
-      }
       const completed: Message[] = [...next, { role: "assistant", content: data.content }];
       messagesRef.current = completed;
       setMessages(completed);
@@ -72,7 +97,7 @@ export default function ChatClient({ initialMessage, initialConversationId, init
       sending.current = false;
       setLoading(false);
     }
-  }, [conversationId]);
+  }, [applyConversationId]);
 
   useEffect(() => {
     if (sentInitial.current) return;
