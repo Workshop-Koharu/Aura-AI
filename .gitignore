@@ -60,4 +60,5 @@ next-env.d.ts
 *.py[cod]
 *.pt
 .aura-gateway-secret
-
+/kaggle/runtime-private/
+/kaggle/training-data/
