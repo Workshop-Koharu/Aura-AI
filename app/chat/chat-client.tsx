@@ -48,22 +48,7 @@ export default function ChatClient({ initialMessage, initialConversationId, init
     setLoading(true);
 
     try {
-      let activeId = conversationIdRef.current;
-      if (!activeId) {
-        const createResponse = await fetch("/api/conversations", {
-          method: "POST",
-          headers: { Accept: "application/json" },
-          cache: "no-store",
-        });
-        const created = await createResponse.json().catch(() => null) as {
-          conversationId?: unknown; error?: unknown;
-        } | null;
-        if (!createResponse.ok || typeof created?.conversationId !== "string") {
-          throw new Error(typeof created?.error === "string" ? created.error : "새 대화를 만들지 못했습니다.");
-        }
-        activeId = created.conversationId;
-        applyConversationId(activeId);
-      }
+      const activeId = conversationIdRef.current;
 
       const response = await fetch("/api/chat", {
         method: "POST",
